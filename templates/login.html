@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Login / Register{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <h2>{{ 'Register' if register else 'Login' }}</h2>
+    <form id="authForm" method="POST" action="{{ url_for('register') if register else url_for('login') }}">
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">{{ 'Register' if register else 'Login' }}</button>
+    </form>
+    <p class="auth-switch">
+        {{ 'Already have an account?' if register else 'No account?' }}
+        <a href="{{ url_for('login') if register else url_for('register') }}">
+            {{ 'Login' if register else 'Register' }}
+        </a>
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('authForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const action = this.action;
+    
+    try {
+        const res = await fetch(action, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email, password})
+        });
+        const data = await res.json();
+        if (res.ok) {
+            window.location.href = '/dashboard';
+        } else {
+            alert(data.error || 'Error occurred');
+        }
+    } catch (err) {
+        alert('Connection error');
+    }
+});
+</script>
+{% endblock %}
