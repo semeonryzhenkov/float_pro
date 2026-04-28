@@ -232,15 +232,6 @@ function drawDoor(door) {
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    ctx.beginPath();
-    ctx.moveTo(-doorLen, 0);
-    ctx.lineTo(doorLen, 0);
-    ctx.strokeStyle = '#666';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
     ctx.restore();
 }
 
@@ -267,58 +258,99 @@ function detectRooms() {
     const doors = data.doors;
     
     if (walls.length < 3) return;
-    if (doors.length === 0) return;
     
-    const points = [];
+    const graph = {};
+    const pointKey = (x, y) => `${Math.round(x/GRID)*GRID},${Math.round(y/GRID)*GRID}`;
+    
     walls.forEach(w => {
-        points.push({x: w.x1, y: w.y1});
-        points.push({x: w.x2, y: w.y2});
+        const k1 = pointKey(w.x1, w.y1);
+        const k2 = pointKey(w.x2, w.y2);
+        if (!graph[k1]) graph[k1] = [];
+        if (!graph[k2]) graph[k2] = [];
+        graph[k1].push({x: w.x2, y: w.y2});
+        graph[k2].push({x: w.x1, y: w.y1});
     });
     
-    const uniquePoints = [];
-    points.forEach(p => {
-        const exists = uniquePoints.some(up => Math.abs(up.x - p.x) < 5 && Math.abs(up.y - p.y) < 5);
-        if (!exists) uniquePoints.push(p);
-    });
+    const visited = new Set();
+    const cycles = [];
     
-    if (uniquePoints.length >= 3) {
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        uniquePoints.forEach(p => {
-            if (p.x < minX) minX = p.x;
-            if (p.y < minY) minY = p.y;
-            if (p.x > maxX) maxX = p.x;
-            if (p.y > maxY) maxY = p.y;
-        });
-        
-        const hasDoorInside = doors.some(d => {
-            return d.x > minX && d.x < maxX && d.y > minY && d.y < maxY;
-        });
-        
-        if (hasDoorInside) {
-            const cx = (minX + maxX) / 2;
-            const cy = (minY + maxY) / 2;
-            
-            if (!data.rooms.some(r => Math.abs(r.x - cx) < 50 && Math.abs(r.y - cy) < 50)) {
-                data.rooms.push({x: cx, y: cy, name: 'Комната ' + (data.rooms.length + 1)});
-            }
+    function dfs(start, current, path) {
+        const key = pointKey(current.x, current.y);
+        if (visited.has(key) && key === pointKey(start.x, start.y) && path.length > 2) {
+            cycles.push([...path]);
+            return;
         }
+        if (visited.has(key)) return;
+        
+        visited.add(key);
+        const neighbors = graph[key] || [];
+        for (const next of neighbors) {
+            path.push(next);
+            dfs(start, next, path);
+            path.pop();
+        }
+        visited.delete(key);
     }
     
+    Object.keys(graph).forEach(k => {
+        const [x, y] = k.split(',').map(Number);
+        dfs({x, y}, {x, y}, [{x, y}]);
+    });
+    
+    const uniqueCycles = [];
+    cycles.forEach(cycle => {
+        const minX = Math.min(...cycle.map(p => p.x));
+        const maxX = Math.max(...cycle.map(p => p.x));
+        const minY = Math.min(...cycle.map(p => p.y));
+        const maxY = Math.max(...cycle.map(p => p.y));
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        
+        const hasDoor = doors.some(d => {
+            const wall = findClosestWall(d.x, d.y);
+            if (!wall) return false;
+            const onWall = isPointOnLine(d.x, d.y, wall.x1, wall.y1, wall.x2, wall.y2, 5);
+            const inside = d.x > minX && d.x < maxX && d.y > minY && d.y < maxY;
+            return onWall && (d.x >= minX && d.x <= maxX && d.y >= minY && d.y <= maxY);
+        });
+        
+        if (hasDoor && !uniqueCycles.some(c => {
+            const dx = Math.abs(c.cx - cx);
+            const dy = Math.abs(c.cy - cy);
+            return dx < 50 && dy < 50;
+        })) {
+            uniqueCycles.push({cx, cy, minX, maxX, minY, maxY});
+        }
+    });
+    
+    uniqueCycles.forEach((c, i) => {
+        if (!data.rooms.some(r => Math.abs(r.x - c.cx) < 50 && Math.abs(r.y - c.cy) < 50)) {
+            data.rooms.push({x: c.cx, y: c.cy, name: 'Комната ' + (data.rooms.length + 1)});
+        }
+    });
+    
     data.rooms.forEach(room => {
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.15)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
         ctx.beginPath();
         ctx.arc(room.x, room.y, 40, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(0, 200, 0, 0.5)';
+        ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.stroke();
-        ctx.fillStyle = 'green';
+        ctx.fillStyle = '#000';
         ctx.font = 'bold 14px Arial';
         ctx.fillText(room.name, room.x - 30, room.y - 5);
         ctx.fillStyle = '#666';
         ctx.font = '12px Arial';
         ctx.fillText('Двойной клик для имени', room.x - 50, room.y + 15);
     });
+}
+
+function isPointOnLine(px, py, x1, y1, x2, y2, tolerance) {
+    const dist = pointToLineDist(px, py, x1, y1, x2, y2);
+    const onSegment = px >= Math.min(x1, x2) - tolerance && px <= Math.max(x1, x2) + tolerance &&
+                      py >= Math.min(y1, y2) - tolerance && py <= Math.max(y1, y2) + tolerance;
+    return dist <= tolerance && onSegment;
 }
 
 function updateCounts() {
