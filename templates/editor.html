@@ -3,7 +3,7 @@
 {% block title %}{{ project.name }} - Редактор{% endblock %}
 
 {% block content %}
-<div class="editor-container">
+<div class="editor-container" data-theme="light">
     <div class="toolbar">
         <button class="tool-btn active" data-tool="select" title="Выделение и удаление">Выделение</button>
         <button class="tool-btn" data-tool="wall" title="Рисование стен">Стена</button>
@@ -19,6 +19,7 @@
         <button id="saveBtn" class="btn btn-primary" title="Сохранить проект">Сохранить</button>
         <button id="exportPngBtn" class="btn" title="Экспорт в PNG">PNG</button>
         <button id="exportJsonBtn" class="btn" title="Экспорт в JSON">JSON</button>
+        <button id="themeToggle" class="btn" title="Переключить тему">🌓</button>
         <a href="{{ url_for('dashboard') }}" class="btn" title="Вернуться назад">Назад</a>
     </div>
     <div class="canvas-wrapper">
@@ -100,28 +101,29 @@ function snap(val) {
 }
 
 function redraw() {
-    ctx.fillStyle = '#fff';
+    const isDark = currentTheme === 'dark';
+    ctx.fillStyle = isDark ? '#2a2a2a' : '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawGrid();
-    
+
     data.walls.forEach(w => {
         drawWall(w);
     });
-    
+
     data.windows.forEach(win => {
         drawWindow(win);
     });
-    
+
     data.doors.forEach(door => {
         drawDoor(door);
     });
-    
+
     data.labels.forEach(lbl => {
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = isDark ? '#fff' : '#000';
         ctx.font = 'bold 16px Arial';
         ctx.fillText(lbl.text, lbl.x, lbl.y);
     });
-    
+
     detectRooms();
     updateCounts();
 }
@@ -136,6 +138,7 @@ function drawWall(w) {
     const ny = dx / len;
     const hw = th / 2;
     
+    const isDark = currentTheme === 'dark';
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(w.x1 + nx * hw, w.y1 + ny * hw);
@@ -144,10 +147,10 @@ function drawWall(w) {
     ctx.lineTo(w.x1 - nx * hw, w.y1 - ny * hw);
     ctx.closePath();
     
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = isDark ? '#3a3a3a' : '#fff';
     ctx.fill();
     
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
     ctx.lineWidth = 1;
     ctx.stroke();
     
@@ -159,13 +162,13 @@ function drawWall(w) {
         ctx.moveTo(w.x1 + offsetX, w.y1 + offsetY);
         ctx.lineTo(w.x2 + offsetX, w.y2 + offsetY);
     }
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.stroke();
     ctx.setLineDash([]);
     
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = isDark ? '#fff' : '#000';
     ctx.beginPath();
     ctx.arc(w.x1, w.y1, 3, 0, Math.PI * 2);
     ctx.fill();
@@ -177,6 +180,7 @@ function drawWall(w) {
 }
 
 function drawWindow(win) {
+    const isDark = currentTheme === 'dark';
     const wall = findWallForElement(win);
     let angle = 0;
     if (wall) {
@@ -186,9 +190,9 @@ function drawWindow(win) {
     ctx.translate(win.x, win.y);
     ctx.rotate(angle);
     
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = isDark ? '#3a3a3a' : '#fff';
     ctx.fillRect(-12, -5, 24, 10);
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
     ctx.lineWidth = 2;
     ctx.strokeRect(-12, -5, 24, 10);
     
@@ -199,12 +203,13 @@ function drawWindow(win) {
     ctx.lineTo(0, 5);
     ctx.moveTo(8, -5);
     ctx.lineTo(8, 5);
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
     ctx.lineWidth = 1.5;
     ctx.stroke();
     
     ctx.restore();
 }
+    const isDark = currentTheme === 'dark';
 
 function drawDoor(door) {
     const wall = findWallForElement(door);
@@ -221,14 +226,14 @@ function drawDoor(door) {
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.arc(0, 0, doorLen, 0, Math.PI / 2);
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
     ctx.lineWidth = 2;
     ctx.stroke();
     
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(doorLen, 0);
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
     ctx.lineWidth = 2;
     ctx.stroke();
     
@@ -236,7 +241,7 @@ function drawDoor(door) {
 }
 
 function drawGrid() {
-    ctx.strokeStyle = '#eee';
+    const isDark = currentTheme === 'dark'; ctx.strokeStyle = isDark ? '#444' : '#eee';
     ctx.lineWidth = 1;
     for (let x = 0; x < canvas.width; x += 50) {
         ctx.beginPath();
@@ -253,6 +258,7 @@ function drawGrid() {
 }
 
 function detectRooms() {
+    const isDark = currentTheme === 'dark';
     data.rooms = [];
     const walls = data.walls;
     const doors = data.doors;
@@ -337,10 +343,10 @@ function detectRooms() {
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.stroke();
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = isDark ? '#fff' : '#000';
         ctx.font = 'bold 14px Arial';
         ctx.fillText(room.name, room.x - 30, room.y - 5);
-        ctx.fillStyle = '#666';
+        ctx.fillStyle = isDark ? '#aaa' : '#666';
         ctx.font = '12px Arial';
         ctx.fillText('Двойной клик для имени', room.x - 50, room.y + 15);
     });
@@ -610,6 +616,18 @@ function showStatus(msg) {
         setTimeout(() => status.remove(), 300);
     }, 2000);
 }
+
+const themeToggle = document.getElementById('themeToggle');
+const editorContainer = document.querySelector('.editor-container');
+let currentTheme = localStorage.getItem('theme') || 'light';
+editorContainer.setAttribute('data-theme', currentTheme);
+
+themeToggle.addEventListener('click', () => {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    editorContainer.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('theme', currentTheme);
+    redraw();
+});
 
 loadData();
 showStatus('Редактор загружен. Выберите инструмент для начала работы.');

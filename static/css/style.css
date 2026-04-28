@@ -202,42 +202,80 @@ body {
     height: calc(100vh - 60px);
 }
 
+.editor-container[data-theme="light"] {
+    --bg-color: #fff;
+    --text-color: #000;
+    --toolbar-bg: #000;
+    --toolbar-text: #fff;
+    --btn-bg: #fff;
+    --btn-text: #000;
+    --btn-active-bg: #000;
+    --btn-active-text: #fff;
+    --border-color: #000;
+    --canvas-bg: #fff;
+    --info-bg: #000;
+    --info-text: #fff;
+    --separator-bg: #fff;
+    --input-bg: #000;
+    --input-text: #fff;
+    --input-border: #fff;
+}
+
+.editor-container[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --text-color: #fff;
+    --toolbar-bg: #fff;
+    --toolbar-text: #000;
+    --btn-bg: #1a1a1a;
+    --btn-text: #fff;
+    --btn-active-bg: #fff;
+    --btn-active-text: #000;
+    --border-color: #fff;
+    --canvas-bg: #2a2a2a;
+    --info-bg: #fff;
+    --info-text: #000;
+    --separator-bg: #000;
+    --input-bg: #fff;
+    --input-text: #000;
+    --input-border: #000;
+}
+
 .toolbar {
-    background: #000;
+    background: var(--toolbar-bg);
     padding: 1rem;
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
     align-items: center;
-    border-bottom: 2px solid #000;
+    border-bottom: 2px solid var(--border-color);
 }
 
 .tool-btn {
     padding: 0.5rem 1rem;
-    background: #fff;
-    color: #000;
-    border: 2px solid #fff;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border: 2px solid var(--btn-bg);
     border-radius: 0;
     cursor: pointer;
 }
 
 .tool-btn.active {
-    background: #000;
-    color: #fff;
+    background: var(--btn-active-bg);
+    color: var(--btn-active-text);
 }
 
 .toolbar-separator {
     width: 2px;
     height: 30px;
-    background: #fff;
+    background: var(--separator-bg);
     margin: 0 0.5rem;
 }
 
 .canvas-wrapper {
     flex: 1;
     overflow: auto;
-    background: #fff;
-    border: 2px solid #000;
+    background: var(--canvas-bg);
+    border: 2px solid var(--border-color);
     position: relative;
 }
 
@@ -247,17 +285,17 @@ body {
 }
 
 .canvas-wrapper::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border: 1px solid #000;
+    background: var(--canvas-bg);
+    border: 1px solid var(--border-color);
 }
 
 .canvas-wrapper::-webkit-scrollbar-thumb {
-    background: #000;
+    background: var(--border-color);
     border-radius: 0;
 }
 
 .canvas-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #333;
+    background: #666;
 }
 
 #mainCanvas {
@@ -267,14 +305,14 @@ body {
 }
 
 .info-panel {
-    background: #000;
-    color: #fff;
+    background: var(--info-bg);
+    color: var(--info-text);
     padding: 1rem;
     display: flex;
     gap: 2rem;
     align-items: center;
     flex-wrap: wrap;
-    border-top: 2px solid #000;
+    border-top: 2px solid var(--border-color);
 }
 
 .info-panel h3, .info-panel p {
@@ -325,7 +363,7 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: #fff;
+    color: var(--toolbar-text);
 }
 
 .wall-thickness-control label {
@@ -335,10 +373,10 @@ body {
 .wall-thickness-control input {
     width: 60px;
     padding: 0.25rem;
-    border: 2px solid #fff;
+    border: 2px solid var(--input-border);
     border-radius: 0;
-    background: #000;
-    color: #fff;
+    background: var(--input-bg);
+    color: var(--input-text);
 }
 
 @media (max-width: 768px) {
