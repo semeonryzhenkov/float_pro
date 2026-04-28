@@ -5,26 +5,32 @@
 {% block content %}
 <div class="editor-container">
     <div class="toolbar">
-        <button class="tool-btn active" data-tool="select">Select</button>
-        <button class="tool-btn" data-tool="wall">Wall</button>
-        <button class="tool-btn" data-tool="window">Window</button>
-        <button class="tool-btn" data-tool="door">Door</button>
-        <button class="tool-btn" data-tool="room">Room Label</button>
+        <button class="tool-btn active" data-tool="select" title="Select and delete elements">Select</button>
+        <button class="tool-btn" data-tool="wall" title="Draw walls">Wall</button>
+        <button class="tool-btn" data-tool="window" title="Add windows on walls">Window</button>
+        <button class="tool-btn" data-tool="door" title="Add doors">Door</button>
+        <button class="tool-btn" data-tool="room" title="Add room labels">Room Label</button>
         <div class="toolbar-separator"></div>
-        <button id="saveBtn" class="btn btn-primary">Save</button>
-        <button id="exportPngBtn" class="btn">Export PNG</button>
-        <button id="exportJsonBtn" class="btn">Export JSON</button>
-        <a href="{{ url_for('dashboard') }}" class="btn">Back</a>
+        <div class="wall-thickness-control">
+            <label for="wallThickness">Thickness:</label>
+            <input type="number" id="wallThickness" value="20" min="5" max="100" step="5">
+        </div>
+        <div class="toolbar-separator"></div>
+        <button id="saveBtn" class="btn btn-primary" title="Save project to database">Save</button>
+        <button id="exportPngBtn" class="btn" title="Export as PNG image">Export PNG</button>
+        <button id="exportJsonBtn" class="btn" title="Export as JSON file">Export JSON</button>
+        <a href="{{ url_for('dashboard') }}" class="btn" title="Back to dashboard">Back</a>
     </div>
     <div class="canvas-wrapper">
         <canvas id="mainCanvas" width="2000" height="2000"></canvas>
     </div>
     <div class="info-panel">
         <h3>Project: {{ project.name }}</h3>
-        <p>Walls: <span id="wallCount">0</span></p>
-        <p>Windows: <span id="windowCount">0</span></p>
-        <p>Doors: <span id="doorCount">0</span></p>
-        <p>Rooms: <span id="roomCount">0</span></p>
+        <span><strong>Walls:</strong> <span id="wallCount">0</span></span>
+        <span><strong>Windows:</strong> <span id="windowCount">0</span></span>
+        <span><strong>Doors:</strong> <span id="doorCount">0</span></span>
+        <span><strong>Rooms:</strong> <span id="roomCount">0</span></span>
+        <span style="margin-left: auto; color: #666; font-size: 0.875rem;">Click Select tool to delete elements</span>
     </div>
 </div>
 {% endblock %}
@@ -42,6 +48,12 @@ const exportJsonBtn = document.getElementById('exportJsonBtn');
 
 let currentTool = 'select';
 let data = {walls: [], windows: [], doors: [], rooms: [], labels: []};
+let wallThickness = 20;
+
+document.getElementById('wallThickness').addEventListener('change', function() {
+    wallThickness = parseInt(this.value) || 20;
+    showStatus('Wall thickness set to ' + wallThickness + 'px');
+});
 
 toolBtns.forEach(btn => {
     btn.addEventListener('click', function() {
@@ -86,32 +98,79 @@ function redraw() {
     drawGrid();
     
     data.walls.forEach(w => {
+        const th = w.thickness || wallThickness;
+        const dx = w.x2 - w.x1;
+        const dy = w.y2 - w.y1;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len === 0) return;
+        const nx = -dy / len;
+        const ny = dx / len;
+        const hw = th / 2;
+        
         ctx.beginPath();
-        ctx.moveTo(w.x1, w.y1);
-        ctx.lineTo(w.x2, w.y2);
+        ctx.moveTo(w.x1 + nx * hw, w.y1 + ny * hw);
+        ctx.lineTo(w.x2 + nx * hw, w.y2 + ny * hw);
+        ctx.lineTo(w.x2 - nx * hw, w.y2 - ny * hw);
+        ctx.lineTo(w.x1 - nx * hw, w.y1 - ny * hw);
+        ctx.closePath();
+        ctx.fillStyle = '#000';
+        ctx.fill();
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 1;
         ctx.stroke();
     });
     
     data.windows.forEach(win => {
-        ctx.fillStyle = 'lightblue';
-        ctx.strokeStyle = 'blue';
-        ctx.fillRect(win.x - 10, win.y - 5, 20, 10);
-        ctx.strokeRect(win.x - 10, win.y - 5, 20, 10);
+        const wall = findWallForElement(win);
+        let angle = 0;
+        if (wall) {
+            angle = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1);
+        }
+        ctx.save();
+        ctx.translate(win.x, win.y);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.fillRect(-15, -4, 30, 8);
+        ctx.strokeRect(-15, -4, 30, 8);
+        ctx.beginPath();
+        ctx.moveTo(-10, 0);
+        ctx.lineTo(10, 0);
+        ctx.stroke();
+        ctx.restore();
     });
     
     data.doors.forEach(door => {
+        const wall = findWallForElement(door);
+        let angle = 0;
+        if (wall) {
+            angle = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1);
+        }
+        ctx.save();
+        ctx.translate(door.x, door.y);
+        ctx.rotate(angle);
         ctx.beginPath();
-        ctx.arc(door.x, door.y, 15, 0, Math.PI / 2);
-        ctx.strokeStyle = 'brown';
-        ctx.lineWidth = 3;
+        ctx.arc(0, 0, 15, 0, Math.PI / 2);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
         ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(15, 0);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-15, 0);
+        ctx.lineTo(15, 0);
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
     });
     
     data.labels.forEach(lbl => {
-        ctx.fillStyle = '#333';
-        ctx.font = '16px Arial';
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 16px Arial';
         ctx.fillText(lbl.text, lbl.x, lbl.y);
     });
     
@@ -175,13 +234,19 @@ function detectRooms() {
     }
     
     data.rooms.forEach(room => {
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.15)';
         ctx.beginPath();
-        ctx.arc(room.x, room.y, 30, 0, Math.PI * 2);
+        ctx.arc(room.x, room.y, 40, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = 'rgba(0, 200, 0, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
         ctx.fillStyle = 'green';
-        ctx.font = '14px Arial';
-        ctx.fillText(room.name, room.x - 20, room.y);
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(room.name, room.x - 30, room.y - 5);
+        ctx.fillStyle = '#666';
+        ctx.font = '12px Arial';
+        ctx.fillText('Double-click to rename', room.x - 50, room.y + 15);
     });
 }
 
@@ -208,18 +273,37 @@ canvas.addEventListener('mousedown', e => {
     } else if (currentTool === 'window') {
         data.windows.push({x: snap(x), y: snap(y)});
         redraw();
+        showStatus('Window added at ' + snap(x) + ', ' + snap(y));
     } else if (currentTool === 'door') {
         data.doors.push({x: snap(x), y: snap(y)});
         redraw();
+        showStatus('Door added at ' + snap(x) + ', ' + snap(y));
     } else if (currentTool === 'room') {
         const text = prompt('Room name:');
         if (text) {
             data.labels.push({x: snap(x), y: snap(y), text});
             redraw();
+            showStatus('Label added: ' + text);
         }
     } else if (currentTool === 'select') {
         selectElement(x, y);
     }
+});
+
+canvas.addEventListener('dblclick', e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    
+    data.rooms.forEach(room => {
+        if (Math.abs(room.x - x) < 40 && Math.abs(room.y - y) < 40) {
+            const newName = prompt('Rename room:', room.name);
+            if (newName) {
+                room.name = newName;
+                redraw();
+            }
+        }
+    });
 });
 
 canvas.addEventListener('mousemove', e => {
@@ -229,28 +313,42 @@ canvas.addEventListener('mousemove', e => {
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
     
-    currentWall = {x1: startX, y1: startY, x2: snap(x), y2: snap(y)};
+    currentWall = {x1: startX, y1: startY, x2: snap(x), y2: snap(y), thickness: wallThickness};
     
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawGrid();
     data.walls.forEach(w => {
-        ctx.beginPath();
-        ctx.moveTo(w.x1, w.y1);
-        ctx.lineTo(w.x2, w.y2);
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 4;
-        ctx.stroke();
+        drawWallRect(w);
     });
     if (currentWall) {
-        ctx.beginPath();
-        ctx.moveTo(currentWall.x1, currentWall.y1);
-        ctx.lineTo(currentWall.x2, currentWall.y2);
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 4;
-        ctx.stroke();
+        drawWallRect(currentWall, '#666');
     }
 });
+
+function drawWallRect(w, color) {
+    color = color || '#000';
+    const th = w.thickness || wallThickness;
+    const dx = w.x2 - w.x1;
+    const dy = w.y2 - w.y1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const hw = th / 2;
+    
+    ctx.beginPath();
+    ctx.moveTo(w.x1 + nx * hw, w.y1 + ny * hw);
+    ctx.lineTo(w.x2 + nx * hw, w.y2 + ny * hw);
+    ctx.lineTo(w.x2 - nx * hw, w.y2 - ny * hw);
+    ctx.lineTo(w.x1 - nx * hw, w.y1 - ny * hw);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+}
 
 canvas.addEventListener('mouseup', () => {
     if (isDrawing && currentWall) {
@@ -343,10 +441,45 @@ function pointToLineDist(px, py, x1, y1, x2, y2) {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-saveBtn.addEventListener('click', saveData);
-exportPngBtn.addEventListener('click', () => window.open('/api/project/' + projectId + '/export/png'));
-exportJsonBtn.addEventListener('click', () => window.open('/api/project/' + projectId + '/export/json'));
+function findWallForElement(el) {
+    let best = null;
+    let bestDist = Infinity;
+    data.walls.forEach(w => {
+        const d = pointToLineDist(el.x, el.y, w.x1, w.y1, w.x2, w.y2);
+        if (d < bestDist && d < 30) {
+            bestDist = d;
+            best = w;
+        }
+    });
+    return best;
+}
+
+saveBtn.addEventListener('click', () => {
+    saveData();
+    showStatus('Project saved successfully!');
+});
+exportPngBtn.addEventListener('click', () => {
+    window.open('/api/project/' + projectId + '/export/png');
+    showStatus('PNG export started');
+});
+exportJsonBtn.addEventListener('click', () => {
+    window.open('/api/project/' + projectId + '/export/json');
+    showStatus('JSON export started');
+});
+
+function showStatus(msg) {
+    const status = document.createElement('div');
+    status.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#2c3e50;color:white;padding:12px 20px;border-radius:4px;z-index:9999;box-shadow:0 2px 10px rgba(0,0,0,0.2);animation:fadeIn 0.3s;';
+    status.textContent = msg;
+    document.body.appendChild(status);
+    setTimeout(() => {
+        status.style.opacity = '0';
+        status.style.transition = 'opacity 0.3s';
+        setTimeout(() => status.remove(), 300);
+    }, 2000);
+}
 
 loadData();
+showStatus('Editor loaded. Select a tool to start drawing.');
 </script>
 {% endblock %}

@@ -6,17 +6,19 @@
 
 body {
     font-family: Arial, sans-serif;
-    background: #f5f5f5;
+    background: #fff;
     min-height: 100vh;
+    color: #000;
 }
 
 .navbar {
-    background: #2c3e50;
-    color: white;
+    background: #000;
+    color: #fff;
     padding: 1rem 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-bottom: 2px solid #000;
 }
 
 .nav-brand {
@@ -25,7 +27,7 @@ body {
 }
 
 .nav-links a {
-    color: white;
+    color: #fff;
     text-decoration: none;
     margin-left: 1rem;
 }
@@ -43,10 +45,11 @@ body {
 .auth-container {
     max-width: 400px;
     margin: 4rem auto;
-    background: white;
+    background: #fff;
     padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 0;
+    box-shadow: none;
+    border: 2px solid #000;
 }
 
 .auth-container h2 {
@@ -61,36 +64,36 @@ body {
 .form-group label {
     display: block;
     margin-bottom: 0.5rem;
-    color: #333;
+    color: #000;
 }
 
 .form-group input {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 2px solid #000;
+    border-radius: 0;
     font-size: 1rem;
 }
 
 .btn {
     padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 4px;
+    border: 2px solid #000;
+    border-radius: 0;
     cursor: pointer;
     font-size: 1rem;
     text-decoration: none;
     display: inline-block;
-    background: #ecf0f1;
-    color: #333;
+    background: #fff;
+    color: #000;
 }
 
 .btn-primary {
-    background: #3498db;
-    color: white;
+    background: #000;
+    color: #fff;
 }
 
 .btn-primary:hover {
-    background: #2980b9;
+    background: #333;
 }
 
 .btn-sm {
@@ -105,14 +108,15 @@ body {
 }
 
 .auth-switch a {
-    color: #3498db;
+    color: #000;
 }
 
 .dashboard {
-    background: white;
+    background: #fff;
     padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 0;
+    box-shadow: none;
+    border: 2px solid #000;
 }
 
 .dashboard h2 {
@@ -127,10 +131,10 @@ body {
 }
 
 .project-card {
-    background: #f9f9f9;
+    background: #fff;
     padding: 1.5rem;
-    border-radius: 8px;
-    border: 1px solid #eee;
+    border-radius: 0;
+    border: 2px solid #000;
 }
 
 .project-card h3 {
@@ -155,7 +159,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.8);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -167,10 +171,11 @@ body {
 }
 
 .modal-content {
-    background: white;
+    background: #fff;
     padding: 2rem;
-    border-radius: 8px;
+    border-radius: 0;
     min-width: 400px;
+    border: 2px solid #000;
 }
 
 .modal-content h3 {
@@ -180,8 +185,8 @@ body {
 .modal-content input {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 2px solid #000;
+    border-radius: 0;
     margin-bottom: 1rem;
 }
 
@@ -198,31 +203,33 @@ body {
 }
 
 .toolbar {
-    background: #2c3e50;
+    background: #000;
     padding: 1rem;
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
     align-items: center;
+    border-bottom: 2px solid #000;
 }
 
 .tool-btn {
     padding: 0.5rem 1rem;
-    background: #34495e;
-    color: white;
-    border: none;
-    border-radius: 4px;
+    background: #fff;
+    color: #000;
+    border: 2px solid #fff;
+    border-radius: 0;
     cursor: pointer;
 }
 
 .tool-btn.active {
-    background: #3498db;
+    background: #000;
+    color: #fff;
 }
 
 .toolbar-separator {
-    width: 1px;
+    width: 2px;
     height: 30px;
-    background: #555;
+    background: #fff;
     margin: 0 0.5rem;
 }
 
@@ -230,24 +237,108 @@ body {
     flex: 1;
     overflow: auto;
     background: #fff;
-    border: 1px solid #ddd;
+    border: 2px solid #000;
+    position: relative;
+}
+
+.canvas-wrapper::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.canvas-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border: 1px solid #000;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb {
+    background: #000;
+    border-radius: 0;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #333;
 }
 
 #mainCanvas {
     display: block;
     margin: 0 auto;
+    touch-action: none;
 }
 
 .info-panel {
-    background: #ecf0f1;
+    background: #000;
+    color: #fff;
     padding: 1rem;
     display: flex;
     gap: 2rem;
     align-items: center;
+    flex-wrap: wrap;
+    border-top: 2px solid #000;
 }
 
-.info-panel h3 {
-    margin-right: 2rem;
+.info-panel h3, .info-panel p {
+    margin: 0;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.btn-secondary {
+    background: #fff;
+    color: #000;
+}
+
+.btn-secondary:hover {
+    background: #ccc;
+}
+
+.btn-danger {
+    background: #fff;
+    color: #000;
+    border-color: #000;
+}
+
+.btn-danger:hover {
+    background: #ccc;
+}
+
+.project-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.project-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.tool-btn:hover {
+    background: #ccc;
+}
+
+.tool-btn.active:hover {
+    background: #333;
+}
+
+.wall-thickness-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+}
+
+.wall-thickness-control label {
+    font-size: 0.875rem;
+}
+
+.wall-thickness-control input {
+    width: 60px;
+    padding: 0.25rem;
+    border: 2px solid #fff;
+    border-radius: 0;
+    background: #000;
+    color: #fff;
 }
 
 @media (max-width: 768px) {
@@ -267,5 +358,10 @@ body {
     .info-panel {
         flex-wrap: wrap;
         gap: 1rem;
+    }
+    
+    .modal-content {
+        min-width: 90%;
+        max-width: 400px;
     }
 }
