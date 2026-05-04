@@ -288,3 +288,36 @@ def export_json(project_id):
         as_attachment=True,
         download_name=f'{project.name}.json'
     )
+
+
+@app.route('/api/project/<int:project_id>/stats')
+def get_project_stats(project_id):
+    """Get statistics about the project (wall count, total wall length, etc.)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    project = Project.query.filter_by(id=project_id, user_id=session['user_id']).first_or_404()
+    data = json.loads(project.data or '{}')
+    
+    walls = data.get('walls', [])
+    windows = data.get('windows', [])
+    doors = data.get('doors', [])
+    labels = data.get('labels', [])
+    
+    import math
+    total_wall_length = 0
+    for wall in walls:
+        x1, y1 = wall.get('x1', 0), wall.get('y1', 0)
+        x2, y2 = wall.get('x2', 0), wall.get('y2', 0)
+        length = math.sqrt((x2 - x1)**2 + **(y2 - y1)2)
+        total_wall_length += length
+    
+    stats = {
+        'wall_count': len(walls),
+        'window_count': len(windows),
+        'door_count': len(doors),
+        'label_count': len(labels),
+        'total_wall_length': round(total_wall_length, 2),
+        'area_estimate': round(total_wall_length * 3, 2)  # rough estimate assuming 3m height
+    }
+    
+    return jsonify(stats)
