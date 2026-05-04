@@ -308,7 +308,7 @@ def get_project_stats(project_id):
     for wall in walls:
         x1, y1 = wall.get('x1', 0), wall.get('y1', 0)
         x2, y2 = wall.get('x2', 0), wall.get('y2', 0)
-        length = math.sqrt((x2 - x1)**2 + **(y2 - y1)2)
+        length = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
         total_wall_length += length
     
     stats = {
