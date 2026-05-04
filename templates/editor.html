@@ -46,6 +46,8 @@ const toolBtns = document.querySelectorAll('.tool-btn');
 const saveBtn = document.getElementById('saveBtn');
 const exportPngBtn = document.getElementById('exportPngBtn');
 const exportJsonBtn = document.getElementById('exportJsonBtn');
+const themeToggle = document.getElementById('themeToggle');
+const editorContainer = document.querySelector('.editor-container');
 
 const GRID = 20;
 const SNAP_DIST = 15;
@@ -53,6 +55,8 @@ const SNAP_DIST = 15;
 let currentTool = 'select';
 let data = {walls: [], windows: [], doors: [], rooms: [], labels: []};
 let wallThickness = 20;
+let currentTheme = localStorage.getItem('theme') || 'light';
+editorContainer.setAttribute('data-theme', currentTheme);
 
 document.getElementById('wallThickness').addEventListener('change', function() {
     wallThickness = parseInt(this.value) || 20;
@@ -209,9 +213,9 @@ function drawWindow(win) {
     
     ctx.restore();
 }
-    const isDark = currentTheme === 'dark';
 
 function drawDoor(door) {
+    const isDark = currentTheme === 'dark';
     const wall = findWallForElement(door);
     let angle = 0;
     if (wall) {
@@ -616,11 +620,6 @@ function showStatus(msg) {
         setTimeout(() => status.remove(), 300);
     }, 2000);
 }
-
-const themeToggle = document.getElementById('themeToggle');
-const editorContainer = document.querySelector('.editor-container');
-let currentTheme = localStorage.getItem('theme') || 'light';
-editorContainer.setAttribute('data-theme', currentTheme);
 
 themeToggle.addEventListener('click', () => {
     currentTheme = currentTheme === 'light' ? 'dark' : 'light';
