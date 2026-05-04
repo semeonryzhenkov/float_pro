@@ -25,15 +25,59 @@
     <div class="canvas-wrapper">
         <canvas id="mainCanvas" width="2000" height="2000"></canvas>
     </div>
+    
+    <!-- Всплывающее меню для выделенного объекта -->
+    <div id="selectionMenu" class="selection-menu" style="display: none;">
+        <button id="menuDeleteBtn" class="btn-sm btn-danger">Удалить</button>
+        <button id="menuDuplicateBtn" class="btn-sm btn-primary">Дублировать</button>
+    </div>
+    
     <div class="info-panel">
         <h3>Проект: {{ project.name }}</h3>
         <span><strong>Стен:</strong> <span id="wallCount">0</span></span>
         <span><strong>Окон:</strong> <span id="windowCount">0</span></span>
         <span><strong>Дверей:</strong> <span id="doorCount">0</span></span>
         <span><strong>Комнат:</strong> <span id="roomCount">0</span></span>
-        <span style="margin-left: auto; color: #666; font-size: 0.875rem;">Инструмент "Выделение" для удаления</span>
+        <span style="margin-left: auto; color: #666; font-size: 0.875rem;">Инструмент "Выделение" для перемещения и удаления</span>
     </div>
 </div>
+
+<style>
+.selection-menu {
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 1000;
+    display: flex;
+    gap: 5px;
+}
+.selection-menu.dark {
+    background: #2a2a2a;
+    border-color: #444;
+}
+.selection-menu.dark button {
+    background: #3a3a3a;
+    color: #fff;
+}
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+}
+.btn-primary {
+    background: #007bff;
+    color: white;
+    border: none;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -46,6 +90,11 @@ const toolBtns = document.querySelectorAll('.tool-btn');
 const saveBtn = document.getElementById('saveBtn');
 const exportPngBtn = document.getElementById('exportPngBtn');
 const exportJsonBtn = document.getElementById('exportJsonBtn');
+const themeToggle = document.getElementById('themeToggle');
+const editorContainer = document.querySelector('.editor-container');
+const selectionMenu = document.getElementById('selectionMenu');
+const menuDeleteBtn = document.getElementById('menuDeleteBtn');
+const menuDuplicateBtn = document.getElementById('menuDuplicateBtn');
 
 const GRID = 20;
 const SNAP_DIST = 15;
@@ -53,6 +102,13 @@ const SNAP_DIST = 15;
 let currentTool = 'select';
 let data = {walls: [], windows: [], doors: [], rooms: [], labels: []};
 let wallThickness = 20;
+let currentTheme = localStorage.getItem('theme') || 'light';
+editorContainer.setAttribute('data-theme', currentTheme);
+
+// Переменные для выделения и перемещения
+let selectedObject = null; // { type: 'room'|'wall'|'window'|'door'|'label', index: int }
+let isDragging = false;
+let dragOffset = { x: 0, y: 0 };
 
 document.getElementById('wallThickness').addEventListener('change', function() {
     wallThickness = parseInt(this.value) || 20;
@@ -64,8 +120,14 @@ toolBtns.forEach(btn => {
         toolBtns.forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         currentTool = this.dataset.tool;
+        hideSelectionMenu();
     });
 });
+
+function hideSelectionMenu() {
+    selectionMenu.style.display = 'none';
+    selectedObject = null;
+}
 
 async function loadData() {
     try {
@@ -126,6 +188,11 @@ function redraw() {
 
     detectRooms();
     updateCounts();
+    
+    // Перерисовать выделение если есть
+    if (selectedObject) {
+        drawSelectionHighlight();
+    }
 }
 
 function drawWall(w) {
@@ -154,17 +221,26 @@ function drawWall(w) {
     ctx.lineWidth = 1;
     ctx.stroke();
     
+    // Диагональная штриховка пунктиром для эффекта монолита
     const spacing = 8;
     ctx.beginPath();
     for (let t = -hw + 2; t < hw; t += spacing) {
         const offsetX = nx * t;
         const offsetY = ny * t;
-        ctx.moveTo(w.x1 + offsetX, w.y1 + offsetY);
-        ctx.lineTo(w.x2 + offsetX, w.y2 + offsetY);
+        // Диагональные линии
+        const diagSpacing = 15;
+        for (let s = 0; s < len + diagSpacing; s += diagSpacing) {
+            const startX = w.x1 + offsetX + (dx/len) * s;
+            const startY = w.y1 + offsetY + (dy/len) * s;
+            const endX = startX + (nx * 10) + (dx/len) * 5;
+            const endY = startY + (ny * 10) + (dy/len) * 5;
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+        }
     }
-    ctx.strokeStyle = isDark ? '#fff' : '#000';
+    ctx.strokeStyle = isDark ? '#aaa' : '#666';
     ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.setLineDash([3, 4]);
     ctx.stroke();
     ctx.setLineDash([]);
     
@@ -209,9 +285,9 @@ function drawWindow(win) {
     
     ctx.restore();
 }
-    const isDark = currentTheme === 'dark';
 
 function drawDoor(door) {
+    const isDark = currentTheme === 'dark';
     const wall = findWallForElement(door);
     let angle = 0;
     if (wall) {
@@ -241,7 +317,8 @@ function drawDoor(door) {
 }
 
 function drawGrid() {
-    const isDark = currentTheme === 'dark'; ctx.strokeStyle = isDark ? '#444' : '#eee';
+    const isDark = currentTheme === 'dark'; 
+    ctx.strokeStyle = isDark ? '#444' : '#eee';
     ctx.lineWidth = 1;
     for (let x = 0; x < canvas.width; x += 50) {
         ctx.beginPath();
@@ -259,7 +336,6 @@ function drawGrid() {
 
 function detectRooms() {
     const isDark = currentTheme === 'dark';
-    data.rooms = [];
     const walls = data.walls;
     const doors = data.doors;
     
@@ -305,18 +381,24 @@ function detectRooms() {
     
     const uniqueCycles = [];
     cycles.forEach(cycle => {
+        // Вычисляем центр как среднее всех точек (а не по последней!)
+        let sumX = 0, sumY = 0;
+        cycle.forEach(p => {
+            sumX += p.x;
+            sumY += p.y;
+        });
+        const cx = sumX / cycle.length;
+        const cy = sumY / cycle.length;
+        
         const minX = Math.min(...cycle.map(p => p.x));
         const maxX = Math.max(...cycle.map(p => p.x));
         const minY = Math.min(...cycle.map(p => p.y));
         const maxY = Math.max(...cycle.map(p => p.y));
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
         
         const hasDoor = doors.some(d => {
             const wall = findClosestWall(d.x, d.y);
             if (!wall) return false;
             const onWall = isPointOnLine(d.x, d.y, wall.x1, wall.y1, wall.x2, wall.y2, 5);
-            const inside = d.x > minX && d.x < maxX && d.y > minY && d.y < maxY;
             return onWall && (d.x >= minX && d.x <= maxX && d.y >= minY && d.y <= maxY);
         });
         
@@ -329,26 +411,40 @@ function detectRooms() {
         }
     });
     
+    // Синхронизируем существующие комнаты с найденными
     uniqueCycles.forEach((c, i) => {
-        if (!data.rooms.some(r => Math.abs(r.x - c.cx) < 50 && Math.abs(r.y - c.cy) < 50)) {
+        const existing = data.rooms.find(r => Math.abs(r.x - c.cx) < 50 && Math.abs(r.y - c.cy) < 50);
+        if (!existing) {
             data.rooms.push({x: c.cx, y: c.cy, name: 'Комната ' + (data.rooms.length + 1)});
+        } else {
+            // Обновляем центр если комната уже существует
+            existing.x = c.cx;
+            existing.y = c.cy;
         }
     });
     
+    // Отрисовка комнат
     data.rooms.forEach(room => {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        // Полупрозрачный фон
+        ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
         ctx.beginPath();
         ctx.arc(room.x, room.y, 40, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
+        
+        // Обводка
+        ctx.strokeStyle = selectedObject && selectedObject.type === 'room' && selectedObject.room === room ? '#ff0000' : '#007bff';
+        ctx.lineWidth = selectedObject && selectedObject.type === 'room' && selectedObject.room === room ? 3 : 2;
         ctx.stroke();
+        
+        // Текст
         ctx.fillStyle = isDark ? '#fff' : '#000';
         ctx.font = 'bold 14px Arial';
-        ctx.fillText(room.name, room.x - 30, room.y - 5);
+        ctx.textAlign = 'center';
+        ctx.fillText(room.name, room.x, room.y - 5);
+        ctx.font = '11px Arial';
         ctx.fillStyle = isDark ? '#aaa' : '#666';
-        ctx.font = '12px Arial';
-        ctx.fillText('Двойной клик для имени', room.x - 50, room.y + 15);
+        ctx.fillText('Двойной клик для имени', room.x, room.y + 15);
+        ctx.textAlign = 'start';
     });
 }
 
@@ -366,6 +462,54 @@ function updateCounts() {
     document.getElementById('roomCount').textContent = data.rooms.length;
 }
 
+function drawSelectionHighlight() {
+    if (!selectedObject) return;
+    
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    
+    if (selectedObject.type === 'room') {
+        const room = selectedObject.room;
+        ctx.beginPath();
+        ctx.arc(room.x, room.y, 45, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (selectedObject.type === 'wall') {
+        const w = data.walls[selectedObject.index];
+        ctx.beginPath();
+        ctx.moveTo(w.x1, w.y1);
+        ctx.lineTo(w.x2, w.y2);
+        ctx.stroke();
+    } else if (selectedObject.type === 'window') {
+        const win = data.windows[selectedObject.index];
+        ctx.beginPath();
+        ctx.arc(win.x, win.y, 20, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (selectedObject.type === 'door') {
+        const door = data.doors[selectedObject.index];
+        ctx.beginPath();
+        ctx.arc(door.x, door.y, 25, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (selectedObject.type === 'label') {
+        const lbl = data.labels[selectedObject.index];
+        ctx.strokeRect(lbl.x - 5, lbl.y - 20, 100, 30);
+    }
+    
+    ctx.setLineDash([]);
+}
+
+function showSelectionMenu(x, y) {
+    const isDark = currentTheme === 'dark';
+    selectionMenu.style.left = x + 'px';
+    selectionMenu.style.top = y + 'px';
+    selectionMenu.style.display = 'flex';
+    if (isDark) {
+        selectionMenu.classList.add('dark');
+    } else {
+        selectionMenu.classList.remove('dark');
+    }
+}
+
 let isDrawing = false;
 let startX, startY;
 let currentWall = null;
@@ -380,6 +524,7 @@ canvas.addEventListener('mousedown', e => {
         isDrawing = true;
         startX = snap(x);
         startY = snap(y);
+        hideSelectionMenu();
     } else if (currentTool === 'window') {
         const wall = findClosestWall(x, y);
         if (wall) {
@@ -394,6 +539,7 @@ canvas.addEventListener('mousedown', e => {
         isDrawing = true;
         startX = snap(x);
         startY = snap(y);
+        hideSelectionMenu();
     } else if (currentTool === 'room') {
         const text = prompt('Название комнаты:');
         if (text) {
@@ -402,7 +548,35 @@ canvas.addEventListener('mousedown', e => {
             showStatus('Название добавлено: ' + text);
         }
     } else if (currentTool === 'select') {
-        selectElement(x, y);
+        // Попытка выделить объект
+        selectObject(x, y);
+        
+        if (selectedObject) {
+            isDragging = true;
+            dragOffset.x = x;
+            dragOffset.y = y;
+            
+            // Сохраняем начальные координаты для отмены при необходимости
+            if (selectedObject.type === 'room') {
+                dragOffset.startX = selectedObject.room.x;
+                dragOffset.startY = selectedObject.room.y;
+            } else if (selectedObject.type === 'wall') {
+                const w = data.walls[selectedObject.index];
+                dragOffset.startX1 = w.x1; dragOffset.startY1 = w.y1;
+                dragOffset.startX2 = w.x2; dragOffset.startY2 = w.y2;
+            } else if (selectedObject.type === 'window') {
+                const win = data.windows[selectedObject.index];
+                dragOffset.startX = win.x; dragOffset.startY = win.y;
+            } else if (selectedObject.type === 'door') {
+                const door = data.doors[selectedObject.index];
+                dragOffset.startX = door.x; dragOffset.startY = door.y;
+            } else if (selectedObject.type === 'label') {
+                const lbl = data.labels[selectedObject.index];
+                dragOffset.startX = lbl.x; dragOffset.startY = lbl.y;
+            }
+        } else {
+            hideSelectionMenu();
+        }
     }
 });
 
@@ -411,8 +585,10 @@ canvas.addEventListener('dblclick', e => {
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
     
+    // Двойной клик по комнате для переименования
     data.rooms.forEach(room => {
-        if (Math.abs(room.x - x) < 40 && Math.abs(room.y - y) < 40) {
+        const dist = Math.sqrt((room.x - x)**2 + **(room.y - y)2);
+        if (dist < 40) {
             const newName = prompt('Переименовать комнату:', room.name);
             if (newName) {
                 room.name = newName;
@@ -423,42 +599,60 @@ canvas.addEventListener('dblclick', e => {
 });
 
 canvas.addEventListener('mousemove', e => {
-    if (!isDrawing) return;
-    
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
     
-    if (currentTool === 'wall') {
-        currentWall = {x1: startX, y1: startY, x2: snap(x), y2: snap(y), thickness: wallThickness};
-        
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        drawGrid();
-        data.walls.forEach(w => {
-            drawWall(w);
-        });
-        if (currentWall) {
-            drawWall(currentWall);
+    if (isDrawing) {
+        if (currentTool === 'wall') {
+            currentWall = {x1: startX, y1: startY, x2: snap(x), y2: snap(y), thickness: wallThickness};
+            
+            ctx.fillStyle = currentTheme === 'dark' ? '#2a2a2a' : '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            data.walls.forEach(w => drawWall(w));
+            if (currentWall) drawWall(currentWall);
+        } else if (currentTool === 'door') {
+            const dx = snap(x) - startX;
+            const dy = snap(y) - startY;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            currentDoor = {x: startX, y: startY, length: len};
+            
+            ctx.fillStyle = currentTheme === 'dark' ? '#2a2a2a' : '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            data.walls.forEach(w => drawWall(w));
+            data.doors.forEach(d => drawDoor(d));
+            if (currentDoor) drawDoor(currentDoor);
         }
-    } else if (currentTool === 'door') {
-        const dx = snap(x) - startX;
-        const dy = snap(y) - startY;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        currentDoor = {x: startX, y: startY, length: len};
+    } else if (isDragging && selectedObject) {
+        const dx = x - dragOffset.x;
+        const dy = y - dragOffset.y;
         
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        drawGrid();
-        data.walls.forEach(w => {
-            drawWall(w);
-        });
-        data.doors.forEach(d => {
-            drawDoor(d);
-        });
-        if (currentDoor) {
-            drawDoor(currentDoor);
+        if (selectedObject.type === 'room') {
+            selectedObject.room.x = dragOffset.startX + dx;
+            selectedObject.room.y = dragOffset.startY + dy;
+        } else if (selectedObject.type === 'wall') {
+            const w = data.walls[selectedObject.index];
+            w.x1 = dragOffset.startX1 + dx;
+            w.y1 = dragOffset.startY1 + dy;
+            w.x2 = dragOffset.startX2 + dx;
+            w.y2 = dragOffset.startY2 + dy;
+        } else if (selectedObject.type === 'window') {
+            const win = data.windows[selectedObject.index];
+            win.x = dragOffset.startX + dx;
+            win.y = dragOffset.startY + dy;
+        } else if (selectedObject.type === 'door') {
+            const door = data.doors[selectedObject.index];
+            door.x = dragOffset.startX + dx;
+            door.y = dragOffset.startY + dy;
+        } else if (selectedObject.type === 'label') {
+            const lbl = data.labels[selectedObject.index];
+            lbl.x = dragOffset.startX + dx;
+            lbl.y = dragOffset.startY + dy;
         }
+        
+        redraw();
     }
 });
 
@@ -476,63 +670,187 @@ canvas.addEventListener('mouseup', () => {
         redraw();
     }
     isDrawing = false;
+    isDragging = false;
 });
 
-function selectElement(x, y) {
-    let found = false;
+function selectObject(x, y) {
+    selectedObject = null;
     
-    data.walls.forEach((w, i) => {
-        const dist = pointToLineDist(x, y, w.x1, w.y1, w.x2, w.y2);
-        if (dist < 10) {
-            if (confirm('Удалить эту стену?')) {
-                data.walls.splice(i, 1);
-                redraw();
+    // Проверка комнат (кружков)
+    for (let i = 0; i < data.rooms.length; i++) {
+        const room = data.rooms[i];
+        const dist = Math.sqrt((room.x - x)**2 + **(room.y - y)2);
+        if (dist < 40) {
+            selectedObject = { type: 'room', index: i, room: room };
+            break;
+        }
+    }
+    
+    if (!selectedObject) {
+        // Проверка стен
+        for (let i = 0; i < data.walls.length; i++) {
+            const w = data.walls[i];
+            const dist = pointToLineDist(x, y, w.x1, w.y1, w.x2, w.y2);
+            if (dist < 10) {
+                selectedObject = { type: 'wall', index: i };
+                break;
             }
-            found = true;
+        }
+    }
+    
+    if (!selectedObject) {
+        // Проверка окон
+        for (let i = 0; i < data.windows.length; i++) {
+            const win = data.windows[i];
+            if (Math.abs(win.x - x) < 15 && Math.abs(win.y - y) < 15) {
+                selectedObject = { type: 'window', index: i };
+                break;
+            }
+        }
+    }
+    
+    if (!selectedObject) {
+        // Проверка дверей
+        for (let i = 0; i < data.doors.length; i++) {
+            const door = data.doors[i];
+            if (Math.abs(door.x - x) < 20 && Math.abs(door.y - y) < 20) {
+                selectedObject = { type: 'door', index: i };
+                break;
+            }
+        }
+    }
+    
+    if (!selectedObject) {
+        // Проверка меток
+        for (let i = 0; i < data.labels.length; i++) {
+            const lbl = data.labels[i];
+            if (Math.abs(lbl.x - x) < 50 && Math.abs(lbl.y - y) < 20) {
+                selectedObject = { type: 'label', index: i };
+                break;
+            }
+        }
+    }
+    
+    if (selectedObject) {
+        redraw();
+        showSelectionMenu(x + 10, y + 10);
+    }
+}
+
+// Обработчики кнопок меню
+menuDeleteBtn.addEventListener('click', () => {
+    if (!selectedObject) return;
+    
+    if (selectedObject.type === 'room') {
+        data.rooms.splice(selectedObject.index, 1);
+    } else if (selectedObject.type === 'wall') {
+        data.walls.splice(selectedObject.index, 1);
+    } else if (selectedObject.type === 'window') {
+        data.windows.splice(selectedObject.index, 1);
+    } else if (selectedObject.type === 'door') {
+        data.doors.splice(selectedObject.index, 1);
+    } else if (selectedObject.type === 'label') {
+        data.labels.splice(selectedObject.index, 1);
+    }
+    
+    selectedObject = null;
+    hideSelectionMenu();
+    redraw();
+    showStatus('Объект удалён');
+});
+
+menuDuplicateBtn.addEventListener('click', () => {
+    if (!selectedObject) return;
+    
+    if (selectedObject.type === 'room') {
+        const orig = data.rooms[selectedObject.index];
+        data.rooms.push({
+            x: orig.x + 100,
+            y: orig.y,
+            name: orig.name + ' (копия)'
+        });
+    } else if (selectedObject.type === 'wall') {
+        const orig = data.walls[selectedObject.index];
+        const width = Math.sqrt((orig.x2 - orig.x1)**2 + **(orig.y2 - orig.y1)2);
+        const offset = width / 2;
+        data.walls.push({
+            x1: orig.x1 + offset,
+            y1: orig.y1,
+            x2: orig.x2 + offset,
+            y2: orig.y2,
+            thickness: orig.thickness
+        });
+    } else if (selectedObject.type === 'window') {
+        const orig = data.windows[selectedObject.index];
+        data.windows.push({
+            x: orig.x + 30,
+            y: orig.y
+        });
+    } else if (selectedObject.type === 'door') {
+        const orig = data.doors[selectedObject.index];
+        data.doors.push({
+            x: orig.x + 30,
+            y: orig.y,
+            length: orig.length
+        });
+    } else if (selectedObject.type === 'label') {
+        const orig = data.labels[selectedObject.index];
+        data.labels.push({
+            x: orig.x + 30,
+            y: orig.y,
+            text: orig.text + ' (копия)'
+        });
+    }
+    
+    selectedObject = null;
+    hideSelectionMenu();
+    redraw();
+    showStatus('Объект дублирован');
+});
+
+function findClosestWall(x, y) {
+    let closest = null;
+    let minDist = Infinity;
+    
+    data.walls.forEach(w => {
+        const dist = pointToLineDist(x, y, w.x1, w.y1, w.x2, w.y2);
+        if (dist < minDist && dist < 20) {
+            minDist = dist;
+            closest = w;
         }
     });
     
-    if (!found) {
-        data.windows.forEach((win, i) => {
-            if (Math.abs(win.x - x) < 15 && Math.abs(win.y - y) < 15) {
-                if (confirm('Удалить это окно?')) {
-                    data.windows.splice(i, 1);
-                    redraw();
-                }
-                found = true;
-            }
-        });
+    return closest;
+}
+
+function findWallForElement(el) {
+    return findClosestWall(el.x, el.y);
+}
+
+function projectPointOnLine(px, py, x1, y1, x2, y2) {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    if (lenSq !== 0) param = dot / lenSq;
+    
+    let xx, yy;
+    
+    if (param < 0) {
+        xx = x1;
+        yy = y1;
+    } else if (param > 1) {
+        xx = x2;
+        yy = y2;
+    } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
     }
     
-    if (!found) {
-        data.doors.forEach((door, i) => {
-            if (Math.abs(door.x - x) < 20 && Math.abs(door.y - y) < 20) {
-                if (confirm('Удалить эту дверь?')) {
-                    data.doors.splice(i, 1);
-                    redraw();
-                }
-                found = true;
-            }
-        });
-    }
-    
-    if (!found) {
-        data.labels.forEach((lbl, i) => {
-            if (Math.abs(lbl.x - x) < 50 && Math.abs(lbl.y - y) < 20) {
-                const newText = prompt('Изменить название:', lbl.text);
-                if (newText === null) {
-                    if (confirm('Удалить название?')) {
-                        data.labels.splice(i, 1);
-                        redraw();
-                    }
-                } else {
-                    lbl.text = newText;
-                    redraw();
-                }
-                found = true;
-            }
-        });
-    }
+    return {x: xx, y: yy};
 }
 
 function pointToLineDist(px, py, x1, y1, x2, y2) {
@@ -544,7 +862,9 @@ function pointToLineDist(px, py, x1, y1, x2, y2) {
     const lenSq = C * C + D * D;
     let param = -1;
     if (lenSq !== 0) param = dot / lenSq;
+    
     let xx, yy;
+    
     if (param < 0) {
         xx = x1;
         yy = y1;
@@ -555,81 +875,41 @@ function pointToLineDist(px, py, x1, y1, x2, y2) {
         xx = x1 + param * C;
         yy = y1 + param * D;
     }
+    
     const dx = px - xx;
     const dy = py - yy;
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-function findWallForElement(el) {
-    let best = null;
-    let bestDist = Infinity;
-    data.walls.forEach(w => {
-        const d = pointToLineDist(el.x, el.y, w.x1, w.y1, w.x2, w.y2);
-        if (d < bestDist && d < 30) {
-            bestDist = d;
-            best = w;
-        }
-    });
-    return best;
-}
-
-function findClosestWall(x, y) {
-    return findWallForElement({x, y});
-}
-
-function projectPointOnLine(px, py, x1, y1, x2, y2) {
-    const A = px - x1;
-    const B = py - y1;
-    const C = x2 - x1;
-    const D = y2 - y1;
-    const dot = A * C + B * D;
-    const lenSq = C * C + D * D;
-    let param = 0.5;
-    if (lenSq !== 0) param = dot / lenSq;
-    param = Math.max(0, Math.min(1, param));
-    return {
-        x: x1 + param * C,
-        y: y1 + param * D
-    };
-}
-
-saveBtn.addEventListener('click', () => {
-    saveData();
-});
-exportPngBtn.addEventListener('click', () => {
-    window.open('/api/project/' + projectId + '/export/png');
-    showStatus('Экспорт PNG начат');
-});
-exportJsonBtn.addEventListener('click', () => {
-    window.open('/api/project/' + projectId + '/export/json');
-    showStatus('Экспорт JSON начат');
-});
-
 function showStatus(msg) {
     const status = document.createElement('div');
-    status.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#2c3e50;color:white;padding:12px 20px;border-radius:4px;z-index:9999;box-shadow:0 2px 10px rgba(0,0,0,0.2);animation:fadeIn 0.3s;';
     status.textContent = msg;
+    status.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:4px;z-index:9999;';
     document.body.appendChild(status);
-    setTimeout(() => {
-        status.style.opacity = '0';
-        status.style.transition = 'opacity 0.3s';
-        setTimeout(() => status.remove(), 300);
-    }, 2000);
+    setTimeout(() => status.remove(), 2000);
 }
 
-const themeToggle = document.getElementById('themeToggle');
-const editorContainer = document.querySelector('.editor-container');
-let currentTheme = localStorage.getItem('theme') || 'light';
-editorContainer.setAttribute('data-theme', currentTheme);
-
+saveBtn.addEventListener('click', saveData);
+exportPngBtn.addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = 'plan.png';
+    link.href = canvas.toDataURL();
+    link.click();
+});
+exportJsonBtn.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+    const link = document.createElement('a');
+    link.download = 'plan.json';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+});
 themeToggle.addEventListener('click', () => {
     currentTheme = currentTheme === 'light' ? 'dark' : 'light';
-    editorContainer.setAttribute('data-theme', currentTheme);
     localStorage.setItem('theme', currentTheme);
+    editorContainer.setAttribute('data-theme', currentTheme);
     redraw();
 });
 
 loadData();
-showStatus('Редактор загружен. Выберите инструмент для начала работы.');
 </script>
 {% endblock %}
