@@ -64,6 +64,9 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     user = User.query.get(session['user_id'])
+    if user is None:
+        session.pop('user_id', None)
+        return redirect(url_for('login'))
     projects = Project.query.filter_by(user_id=user.id).order_by(Project.updated_at.desc()).all()
     return render_template('dashboard.html', projects=projects)
 
