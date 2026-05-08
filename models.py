@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash
 
 db = SQLAlchemy()
 
@@ -25,3 +26,11 @@ def init_db(app):
     db.init_app(app)
     with app.app_context():
         db.create_all()
+        
+        # Создаем дефолтного пользователя если его нет
+        default_user = User.query.filter_by(email='один').first()
+        if not default_user:
+            default_user = User(email='один', password=generate_password_hash('один'))
+            db.session.add(default_user)
+            db.session.commit()
+            print("Дефолтный пользователь 'один/один' создан")
