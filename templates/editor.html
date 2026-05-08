@@ -209,9 +209,9 @@ function drawWindow(win) {
     
     ctx.restore();
 }
-    const isDark = currentTheme === 'dark';
 
 function drawDoor(door) {
+    const isDark = currentTheme === 'dark';
     const wall = findWallForElement(door);
     let angle = 0;
     if (wall) {
