@@ -5,21 +5,21 @@
 {% block content %}
 <div class="editor-container" data-theme="light">
     <div class="toolbar">
-        <button class="tool-btn active" data-tool="select" title="Выделение и удаление">Выделение</button>
-        <button class="tool-btn" data-tool="wall" title="Рисование стен">Стена</button>
-        <button class="tool-btn" data-tool="window" title="Добавить окно">Окно</button>
-        <button class="tool-btn" data-tool="door" title="Добавить дверь">Дверь</button>
-        <button class="tool-btn" data-tool="room" title="Добавить название комнаты">Название</button>
+        <button class="tool-btn active" data-tool="select" title="Выделение и удаление (V)">Выделение</button>
+        <button class="tool-btn" data-tool="wall" title="Рисование стен (W)">Стена</button>
+        <button class="tool-btn" data-tool="window" title="Добавить окно (O)">Окно</button>
+        <button class="tool-btn" data-tool="door" title="Добавить дверь (D)">Дверь</button>
+        <button class="tool-btn" data-tool="room" title="Добавить название комнаты (R)">Название</button>
         <div class="toolbar-separator"></div>
         <div class="wall-thickness-control">
             <label for="wallThickness">Толщина:</label>
             <input type="number" id="wallThickness" value="20" min="5" max="100" step="5">
         </div>
         <div class="toolbar-separator"></div>
-        <button id="saveBtn" class="btn btn-primary" title="Сохранить проект">Сохранить</button>
+        <button id="saveBtn" class="btn btn-primary" title="Сохранить проект (Ctrl+S)">Сохранить</button>
         <button id="exportPngBtn" class="btn" title="Экспорт в PNG">PNG</button>
         <button id="exportJsonBtn" class="btn" title="Экспорт в JSON">JSON</button>
-        <button id="themeToggle" class="btn" title="Переключить тему">🌓</button>
+        <button id="themeToggle" class="btn" title="Переключить тему">Тема</button>
         <a href="{{ url_for('dashboard') }}" class="btn" title="Вернуться назад">Назад</a>
     </div>
     <div class="canvas-wrapper">
@@ -31,7 +31,7 @@
         <span><strong>Окон:</strong> <span id="windowCount">0</span></span>
         <span><strong>Дверей:</strong> <span id="doorCount">0</span></span>
         <span><strong>Комнат:</strong> <span id="roomCount">0</span></span>
-        <span style="margin-left: auto; color: #666; font-size: 0.875rem;">Инструмент "Выделение" для удаления</span>
+        <span style="margin-left: auto; color: #666; font-size: 0.875rem;">Подсказка: используйте инструмент "Выделение" для удаления элементов</span>
     </div>
 </div>
 {% endblock %}
@@ -209,9 +209,9 @@ function drawWindow(win) {
     
     ctx.restore();
 }
-    const isDark = currentTheme === 'dark';
 
 function drawDoor(door) {
+    const isDark = currentTheme === 'dark';
     const wall = findWallForElement(door);
     let angle = 0;
     if (wall) {
@@ -223,6 +223,7 @@ function drawDoor(door) {
     ctx.translate(door.x, door.y);
     ctx.rotate(angle);
     
+    // Рисуем дугу открытия двери
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.arc(0, 0, doorLen, 0, Math.PI / 2);
@@ -230,12 +231,23 @@ function drawDoor(door) {
     ctx.lineWidth = 2;
     ctx.stroke();
     
+    // Рисуем полотно двери
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(doorLen, 0);
     ctx.strokeStyle = isDark ? '#fff' : '#000';
     ctx.lineWidth = 2;
     ctx.stroke();
+    
+    // Рисуем линию проема (пунктир)
+    ctx.beginPath();
+    ctx.moveTo(-doorLen, 0);
+    ctx.lineTo(doorLen, 0);
+    ctx.strokeStyle = isDark ? '#888' : '#888';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
     
     ctx.restore();
 }
@@ -265,6 +277,7 @@ function detectRooms() {
     
     if (walls.length < 3) return;
     
+    // Строим граф соединений стен
     const graph = {};
     const pointKey = (x, y) => `${Math.round(x/GRID)*GRID},${Math.round(y/GRID)*GRID}`;
     
@@ -277,6 +290,7 @@ function detectRooms() {
         graph[k2].push({x: w.x1, y: w.y1});
     });
     
+    // Ищем замкнутые контуры (комнаты)
     const visited = new Set();
     const cycles = [];
     
@@ -303,6 +317,7 @@ function detectRooms() {
         dfs({x, y}, {x, y}, [{x, y}]);
     });
     
+    // Убираем дубликаты комнат и проверяем наличие двери
     const uniqueCycles = [];
     cycles.forEach(cycle => {
         const minX = Math.min(...cycle.map(p => p.x));
@@ -312,43 +327,55 @@ function detectRooms() {
         const cx = (minX + maxX) / 2;
         const cy = (minY + maxY) / 2;
         
+        // Проверяем, есть ли дверь в этой комнате (дверь должна быть на стене комнаты)
         const hasDoor = doors.some(d => {
-            const wall = findClosestWall(d.x, d.y);
-            if (!wall) return false;
-            const onWall = isPointOnLine(d.x, d.y, wall.x1, wall.y1, wall.x2, wall.y2, 5);
-            const inside = d.x > minX && d.x < maxX && d.y > minY && d.y < maxY;
-            return onWall && (d.x >= minX && d.x <= maxX && d.y >= minY && d.y <= maxY);
+            // Дверь должна быть внутри bounding box комнаты
+            const insideX = d.x >= minX - 5 && d.x <= maxX + 5;
+            const insideY = d.y >= minY - 5 && d.y <= maxY + 5;
+            
+            // И стена рядом с дверью
+            const wallNear = walls.some(w => {
+                const dist = pointToLineDist(d.x, d.y, w.x1, w.y1, w.x2, w.y2);
+                return dist < 10;
+            });
+            
+            return insideX && insideY && wallNear;
         });
         
-        if (hasDoor && !uniqueCycles.some(c => {
+        // Добавляем комнату если она уникальна (не дублирует существующую)
+        if (!uniqueCycles.some(c => {
             const dx = Math.abs(c.cx - cx);
             const dy = Math.abs(c.cy - cy);
             return dx < 50 && dy < 50;
         })) {
-            uniqueCycles.push({cx, cy, minX, maxX, minY, maxY});
+            uniqueCycles.push({cx, cy, minX, maxX, minY, maxY, hasDoor});
         }
     });
     
+    // Создаем комнаты
     uniqueCycles.forEach((c, i) => {
         if (!data.rooms.some(r => Math.abs(r.x - c.cx) < 50 && Math.abs(r.y - c.cy) < 50)) {
-            data.rooms.push({x: c.cx, y: c.cy, name: 'Комната ' + (data.rooms.length + 1)});
+            const roomName = c.hasDoor ? 'Комната ' + (data.rooms.length + 1) : 'Зона ' + (data.rooms.length + 1);
+            data.rooms.push({x: c.cx, y: c.cy, name: roomName});
         }
     });
     
+    // Отрисовываем комнаты
     data.rooms.forEach(room => {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        ctx.fillStyle = 'rgba(0, 120, 215, 0.08)';
         ctx.beginPath();
         ctx.arc(room.x, room.y, 40, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#000';
+        ctx.strokeStyle = '#0078d7';
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.fillStyle = isDark ? '#fff' : '#000';
-        ctx.font = 'bold 14px Arial';
-        ctx.fillText(room.name, room.x - 30, room.y - 5);
+        ctx.font = 'bold 14px Segoe UI, Arial';
+        ctx.fillText(room.name, room.x - ctx.measureText(room.name).width / 2, room.y - 5);
         ctx.fillStyle = isDark ? '#aaa' : '#666';
-        ctx.font = '12px Arial';
-        ctx.fillText('Двойной клик для имени', room.x - 50, room.y + 15);
+        ctx.font = '12px Segoe UI, Arial';
+        const hint = room.hasDoor ? '' : '(нет двери)';
+        ctx.fillText(hint, room.x - ctx.measureText(hint).width / 2, room.y + 15);
     });
 }
 
@@ -391,9 +418,20 @@ canvas.addEventListener('mousedown', e => {
             showStatus('Окно можно добавить только на стену');
         }
     } else if (currentTool === 'door') {
-        isDrawing = true;
-        startX = snap(x);
-        startY = snap(y);
+        // При создании двери ищем ближайшую стену и привязываем дверь к ней
+        const wall = findClosestWall(x, y);
+        if (wall) {
+            const proj = projectPointOnLine(x, y, wall.x1, wall.y1, wall.x2, wall.y2);
+            // Вычисляем длину двери как расстояние от точки клика до проекции на стену
+            const dx = x - proj.x;
+            const dy = y - proj.y;
+            const doorLen = Math.max(15, Math.min(40, Math.sqrt(dx * dx + dy * dy) * 2));
+            data.doors.push({x: proj.x, y: proj.y, length: doorLen});
+            redraw();
+            showStatus('Дверь добавлена');
+        } else {
+            showStatus('Дверь можно добавить только на стену. Кликните рядом со стеной.');
+        }
     } else if (currentTool === 'room') {
         const text = prompt('Название комнаты:');
         if (text) {
@@ -441,24 +479,6 @@ canvas.addEventListener('mousemove', e => {
         if (currentWall) {
             drawWall(currentWall);
         }
-    } else if (currentTool === 'door') {
-        const dx = snap(x) - startX;
-        const dy = snap(y) - startY;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        currentDoor = {x: startX, y: startY, length: len};
-        
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        drawGrid();
-        data.walls.forEach(w => {
-            drawWall(w);
-        });
-        data.doors.forEach(d => {
-            drawDoor(d);
-        });
-        if (currentDoor) {
-            drawDoor(currentDoor);
-        }
     }
 });
 
@@ -467,9 +487,6 @@ canvas.addEventListener('mouseup', () => {
         if (currentTool === 'wall' && currentWall) {
             data.walls.push(currentWall);
             showStatus('Стена добавлена');
-        } else if (currentTool === 'door' && currentDoor && currentDoor.length > 5) {
-            data.doors.push(currentDoor);
-            showStatus('Дверь добавлена');
         }
         currentWall = null;
         currentDoor = null;
