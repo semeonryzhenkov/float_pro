@@ -5,21 +5,21 @@
 {% block content %}
 <div class="editor-container" data-theme="light">
     <div class="toolbar">
-        <button class="tool-btn active" data-tool="select" title="Выделение и удаление">Выделение</button>
-        <button class="tool-btn" data-tool="wall" title="Рисование стен">Стена</button>
-        <button class="tool-btn" data-tool="window" title="Добавить окно">Окно</button>
-        <button class="tool-btn" data-tool="door" title="Добавить дверь">Дверь</button>
-        <button class="tool-btn" data-tool="room" title="Добавить название комнаты">Название</button>
+        <button class="tool-btn active" data-tool="select" title="Выделение и удаление (V)">Выделение</button>
+        <button class="tool-btn" data-tool="wall" title="Рисование стен (W)">Стена</button>
+        <button class="tool-btn" data-tool="window" title="Добавить окно (O)">Окно</button>
+        <button class="tool-btn" data-tool="door" title="Добавить дверь (D)">Дверь</button>
+        <button class="tool-btn" data-tool="room" title="Добавить название комнаты (R)">Название</button>
         <div class="toolbar-separator"></div>
         <div class="wall-thickness-control">
             <label for="wallThickness">Толщина:</label>
             <input type="number" id="wallThickness" value="20" min="5" max="100" step="5">
         </div>
         <div class="toolbar-separator"></div>
-        <button id="saveBtn" class="btn btn-primary" title="Сохранить проект">Сохранить</button>
+        <button id="saveBtn" class="btn btn-primary" title="Сохранить проект (Ctrl+S)">Сохранить</button>
         <button id="exportPngBtn" class="btn" title="Экспорт в PNG">PNG</button>
         <button id="exportJsonBtn" class="btn" title="Экспорт в JSON">JSON</button>
-        <button id="themeToggle" class="btn" title="Переключить тему">🌓</button>
+        <button id="themeToggle" class="btn" title="Переключить тему">Тема</button>
         <a href="{{ url_for('dashboard') }}" class="btn" title="Вернуться назад">Назад</a>
     </div>
     <div class="canvas-wrapper">
@@ -31,7 +31,7 @@
         <span><strong>Окон:</strong> <span id="windowCount">0</span></span>
         <span><strong>Дверей:</strong> <span id="doorCount">0</span></span>
         <span><strong>Комнат:</strong> <span id="roomCount">0</span></span>
-        <span style="margin-left: auto; color: #666; font-size: 0.875rem;">Инструмент "Выделение" для удаления</span>
+        <span style="margin-left: auto; color: #666; font-size: 0.875rem;">Подсказка: используйте инструмент "Выделение" для удаления элементов</span>
     </div>
 </div>
 {% endblock %}

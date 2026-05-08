@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Мои проекты - ArchiPlan Studio{% endblock %}
 
 {% block content %}
 <div class="dashboard">
-    <h2>My Projects</h2>
-    <button id="newProjectBtn" class="btn btn-primary">New Project</button>
+    <h2>Мои проекты</h2>
+    <button id="newProjectBtn" class="btn btn-primary">Новый проект</button>
     
     <div class="projects-grid">
         {% for project in projects %}
         <div class="project-card" data-id="{{ project.id }}">
             <h3>{{ project.name }}</h3>
-            <p>Updated: {{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            <p>Обновлено: {{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
             <div class="project-actions">
-                <a href="{{ url_for('editor', project_id=project.id) }}" class="btn btn-sm">Open</a>
-                <button class="btn btn-sm btn-copy" data-id="{{ project.id }}">Copy</button>
-                <button class="btn btn-sm btn-delete" data-id="{{ project.id }}">Delete</button>
+                <a href="{{ url_for('editor', project_id=project.id) }}" class="btn btn-sm">Открыть</a>
+                <button class="btn btn-sm btn-copy" data-id="{{ project.id }}">Копия</button>
+                <button class="btn btn-sm btn-delete" data-id="{{ project.id }}">Удалить</button>
                 <button class="btn btn-sm btn-export-png" data-id="{{ project.id }}">PNG</button>
                 <button class="btn btn-sm btn-export-json" data-id="{{ project.id }}">JSON</button>
             </div>
@@ -26,11 +26,11 @@
 
 <div id="newProjectModal" class="modal hidden">
     <div class="modal-content">
-        <h3>New Project</h3>
-        <input type="text" id="projectName" placeholder="Project name">
+        <h3>Новый проект</h3>
+        <input type="text" id="projectName" placeholder="Название проекта">
         <div class="modal-actions">
-            <button id="cancelNewProject" class="btn">Cancel</button>
-            <button id="confirmNewProject" class="btn btn-primary">Create</button>
+            <button id="cancelNewProject" class="btn">Отмена</button>
+            <button id="confirmNewProject" class="btn btn-primary">Создать</button>
         </div>
     </div>
 </div>
