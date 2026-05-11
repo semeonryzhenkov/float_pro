@@ -1,0 +1,464 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #000;
+}
+
+.navbar {
+    background: linear-gradient(180deg, #f0f0f0 0%, #d4d4d4 100%);
+    color: #000;
+    padding: 0.75rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #a0a0a0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.nav-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #0078d7;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+}
+
+.nav-links a {
+    color: #000;
+    text-decoration: none;
+    margin-left: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+.nav-links a:hover {
+    background: rgba(0, 120, 215, 0.2);
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.auth-container {
+    max-width: 400px;
+    margin: 4rem auto;
+    background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border: 1px solid #c0c0c0;
+}
+
+.auth-container h2 {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: #0078d7;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    background: #fff;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #0078d7;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 0 5px rgba(0, 120, 215, 0.3);
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    text-decoration: none;
+    display: inline-block;
+    background: linear-gradient(180deg, #f0f0f0 0%, #d0d0d0 100%);
+    color: #000;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.btn:hover {
+    background: linear-gradient(180deg, #e8e8e8 0%, #c8c8c8 100%);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+.btn-primary {
+    background: linear-gradient(180deg, #0078d7 0%, #005a9e 100%);
+    color: #fff;
+    border-color: #004578;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(180deg, #0086e8 0%, #0066b0 100%);
+    box-shadow: 0 2px 8px rgba(0, 120, 215, 0.4);
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 1rem;
+    color: #666;
+}
+
+.auth-switch a {
+    color: #0078d7;
+}
+
+.dashboard {
+    background: linear-gradient(180deg, #ffffff 0%, #f9f9f9 100%);
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border: 1px solid #c0c0c0;
+}
+
+.dashboard h2 {
+    margin-bottom: 1.5rem;
+    color: #0078d7;
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.project-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #c0c0c0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+
+.project-card h3 {
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.project-card p {
+    color: #666;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.project-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+    padding: 2rem;
+    border-radius: 8px;
+    min-width: 400px;
+    border: 1px solid #c0c0c0;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.modal-content h3 {
+    margin-bottom: 1rem;
+    color: #0078d7;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    background: #fff;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.modal-content input:focus {
+    outline: none;
+    border-color: #0078d7;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 0 5px rgba(0, 120, 215, 0.3);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 60px);
+    background: linear-gradient(180deg, #f0f0f0 0%, #e0e0e0 100%);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border: 1px solid #a0a0a0;
+}
+
+.editor-container[data-theme="light"] {
+    --bg-color: #fff;
+    --text-color: #000;
+    --toolbar-bg: linear-gradient(180deg, #f0f0f0 0%, #d4d4d4 100%);
+    --toolbar-text: #000;
+    --btn-bg: linear-gradient(180deg, #f0f0f0 0%, #d0d0d0 100%);
+    --btn-text: #000;
+    --btn-active-bg: linear-gradient(180deg, #0078d7 0%, #005a9e 100%);
+    --btn-active-text: #fff;
+    --border-color: #a0a0a0;
+    --canvas-bg: #fff;
+    --info-bg: linear-gradient(180deg, #f0f0f0 0%, #d4d4d4 100%);
+    --info-text: #000;
+    --separator-bg: #ccc;
+    --input-bg: #fff;
+    --input-text: #000;
+    --input-border: #ccc;
+}
+
+.editor-container[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --text-color: #fff;
+    --toolbar-bg: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+    --toolbar-text: #fff;
+    --btn-bg: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+    --btn-text: #fff;
+    --btn-active-bg: linear-gradient(180deg, #0078d7 0%, #005a9e 100%);
+    --btn-active-text: #fff;
+    --border-color: #555;
+    --canvas-bg: #2a2a2a;
+    --info-bg: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+    --info-text: #fff;
+    --separator-bg: #555;
+    --input-bg: #3a3a3a;
+    --input-text: #fff;
+    --input-border: #555;
+}
+
+.toolbar {
+    background: var(--toolbar-bg);
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tool-btn {
+    padding: 0.5rem 1rem;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    font-weight: 500;
+}
+
+.tool-btn:hover {
+    background: linear-gradient(180deg, #e8e8e8 0%, #c8c8c8 100%);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+.tool-btn.active {
+    background: var(--btn-active-bg);
+    color: var(--btn-active-text);
+    border-color: #004578;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toolbar-separator {
+    width: 1px;
+    height: 30px;
+    background: var(--separator-bg);
+    margin: 0 0.5rem;
+}
+
+.canvas-wrapper {
+    flex: 1;
+    overflow: auto;
+    background: var(--canvas-bg);
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+
+.canvas-wrapper::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.canvas-wrapper::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #c0c0c0 0%, #a0a0a0 100%);
+    border-radius: 6px;
+    border: 2px solid #f0f0f0;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #d0d0d0 0%, #b0b0b0 100%);
+}
+
+#mainCanvas {
+    display: block;
+    margin: 0 auto;
+    touch-action: none;
+}
+
+.info-panel {
+    background: var(--info-bg);
+    color: var(--info-text);
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border-color);
+}
+
+.info-panel h3, .info-panel p {
+    margin: 0;
+}
+
+.info-panel h3 {
+    color: #0078d7;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.btn-secondary {
+    background: linear-gradient(180deg, #f0f0f0 0%, #d0d0d0 100%);
+    color: #000;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(180deg, #e8e8e8 0%, #c8c8c8 100%);
+}
+
+.btn-danger {
+    background: linear-gradient(180deg, #d74040 0%, #a03030 100%);
+    color: #fff;
+    border-color: #802020;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(180deg, #e85050 0%, #b04040 100%);
+    box-shadow: 0 2px 8px rgba(215, 64, 64, 0.4);
+}
+
+.project-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.project-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.wall-thickness-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--toolbar-text);
+}
+
+.wall-thickness-control label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.wall-thickness-control input {
+    width: 60px;
+    padding: 0.25rem;
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--input-text);
+}
+
+.wall-thickness-control input:focus {
+    outline: none;
+    border-color: #0078d7;
+    box-shadow: 0 0 5px rgba(0, 120, 215, 0.3);
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .projects-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .toolbar {
+        justify-content: center;
+    }
+    
+    .info-panel {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .modal-content {
+        min-width: 90%;
+        max-width: 400px;
+    }
+}

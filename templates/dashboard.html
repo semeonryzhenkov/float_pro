@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Мои проекты - ArchiPlan Studio{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h2>Мои проекты</h2>
+    <button id="newProjectBtn" class="btn btn-primary">Новый проект</button>
+    
+    <div class="projects-grid">
+        {% for project in projects %}
+        <div class="project-card" data-id="{{ project.id }}">
+            <h3>{{ project.name }}</h3>
+            <p>Обновлено: {{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            <div class="project-actions">
+                <a href="{{ url_for('editor', project_id=project.id) }}" class="btn btn-sm">Открыть</a>
+                <button class="btn btn-sm btn-copy" data-id="{{ project.id }}">Копия</button>
+                <button class="btn btn-sm btn-delete" data-id="{{ project.id }}">Удалить</button>
+                <button class="btn btn-sm btn-export-png" data-id="{{ project.id }}">PNG</button>
+                <button class="btn btn-sm btn-export-json" data-id="{{ project.id }}">JSON</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div id="newProjectModal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Новый проект</h3>
+        <input type="text" id="projectName" placeholder="Название проекта">
+        <div class="modal-actions">
+            <button id="cancelNewProject" class="btn">Отмена</button>
+            <button id="confirmNewProject" class="btn btn-primary">Создать</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const newProjectBtn = document.getElementById('newProjectBtn');
+const modal = document.getElementById('newProjectModal');
+const cancelBtn = document.getElementById('cancelNewProject');
+const confirmBtn = document.getElementById('confirmNewProject');
+const projectNameInput = document.getElementById('projectName');
+
+newProjectBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+cancelBtn.addEventListener('click', () => modal.classList.add('hidden'));
+
+confirmBtn.addEventListener('click', async () => {
+    const name = projectNameInput.value.trim() || 'New Project';
+    try {
+        const res = await fetch('/project/new', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name})
+        });
+        const data = await res.json();
+        if (res.ok) {
+            window.location.href = '/project/' + data.id;
+        } else {
+            alert('Error creating project');
+        }
+    } catch (err) {
+        alert('Connection error');
+    }
+});
+
+document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        if (!confirm('Delete this project?')) return;
+        const id = this.dataset.id;
+        try {
+            const res = await fetch('/api/project/' + id, {method: 'DELETE'});
+            if (res.ok) {
+                location.reload();
+            }
+        } catch (err) {
+            alert('Error deleting');
+        }
+    });
+});
+
+document.querySelectorAll('.btn-copy').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const id = this.dataset.id;
+        try {
+            const res = await fetch('/api/project/' + id + '/copy', {method: 'POST'});
+            const data = await res.json();
+            if (res.ok) {
+                location.reload();
+            }
+        } catch (err) {
+            alert('Error copying');
+        }
+    });
+});
+
+document.querySelectorAll('.btn-export-png').forEach(btn => {
+    btn.addEventListener('click', function() {
+        window.open('/api/project/' + this.dataset.id + '/export/png');
+    });
+});
+
+document.querySelectorAll('.btn-export-json').forEach(btn => {
+    btn.addEventListener('click', function() {
+        window.open('/api/project/' + this.dataset.id + '/export/json');
+    });
+});
+</script>
+{% endblock %}

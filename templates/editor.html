@@ -1,0 +1,652 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} - Редактор{% endblock %}
+
+{% block content %}
+<div class="editor-container" data-theme="light">
+    <div class="toolbar">
+        <button class="tool-btn active" data-tool="select" title="Выделение и удаление (V)">Выделение</button>
+        <button class="tool-btn" data-tool="wall" title="Рисование стен (W)">Стена</button>
+        <button class="tool-btn" data-tool="window" title="Добавить окно (O)">Окно</button>
+        <button class="tool-btn" data-tool="door" title="Добавить дверь (D)">Дверь</button>
+        <button class="tool-btn" data-tool="room" title="Добавить название комнаты (R)">Название</button>
+        <div class="toolbar-separator"></div>
+        <div class="wall-thickness-control">
+            <label for="wallThickness">Толщина:</label>
+            <input type="number" id="wallThickness" value="20" min="5" max="100" step="5">
+        </div>
+        <div class="toolbar-separator"></div>
+        <button id="saveBtn" class="btn btn-primary" title="Сохранить проект (Ctrl+S)">Сохранить</button>
+        <button id="exportPngBtn" class="btn" title="Экспорт в PNG">PNG</button>
+        <button id="exportJsonBtn" class="btn" title="Экспорт в JSON">JSON</button>
+        <button id="themeToggle" class="btn" title="Переключить тему">Тема</button>
+        <a href="{{ url_for('dashboard') }}" class="btn" title="Вернуться назад">Назад</a>
+    </div>
+    <div class="canvas-wrapper">
+        <canvas id="mainCanvas" width="2000" height="2000"></canvas>
+    </div>
+    <div class="info-panel">
+        <h3>Проект: {{ project.name }}</h3>
+        <span><strong>Стен:</strong> <span id="wallCount">0</span></span>
+        <span><strong>Окон:</strong> <span id="windowCount">0</span></span>
+        <span><strong>Дверей:</strong> <span id="doorCount">0</span></span>
+        <span><strong>Комнат:</strong> <span id="roomCount">0</span></span>
+        <span style="margin-left: auto; color: #666; font-size: 0.875rem;">Подсказка: используйте инструмент "Выделение" для удаления элементов</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/canvas.js') }}"></script>
+<script>
+const projectId = {{ project.id }};
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+const toolBtns = document.querySelectorAll('.tool-btn');
+const saveBtn = document.getElementById('saveBtn');
+const exportPngBtn = document.getElementById('exportPngBtn');
+const exportJsonBtn = document.getElementById('exportJsonBtn');
+
+const GRID = 20;
+const SNAP_DIST = 15;
+
+let currentTool = 'select';
+let data = {walls: [], windows: [], doors: [], rooms: [], labels: []};
+let wallThickness = 20;
+
+document.getElementById('wallThickness').addEventListener('change', function() {
+    wallThickness = parseInt(this.value) || 20;
+    showStatus('Толщина стены: ' + wallThickness + 'px');
+});
+
+toolBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+        toolBtns.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentTool = this.dataset.tool;
+    });
+});
+
+async function loadData() {
+    try {
+        const res = await fetch('/api/project/' + projectId);
+        const proj = await res.json();
+        data = proj.data;
+        if (!data.walls) data.walls = [];
+        if (!data.windows) data.windows = [];
+        if (!data.doors) data.doors = [];
+        if (!data.rooms) data.rooms = [];
+        if (!data.labels) data.labels = [];
+        redraw();
+    } catch (err) {
+        console.error('Ошибка загрузки:', err);
+    }
+}
+
+async function saveData() {
+    try {
+        await fetch('/api/project/' + projectId, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({data})
+        });
+        showStatus('Проект сохранён!');
+    } catch (err) {
+        showStatus('Ошибка сохранения');
+    }
+}
+
+function snap(val) {
+    return Math.round(val / GRID) * GRID;
+}
+
+function redraw() {
+    const isDark = currentTheme === 'dark';
+    ctx.fillStyle = isDark ? '#2a2a2a' : '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawGrid();
+
+    data.walls.forEach(w => {
+        drawWall(w);
+    });
+
+    data.windows.forEach(win => {
+        drawWindow(win);
+    });
+
+    data.doors.forEach(door => {
+        drawDoor(door);
+    });
+
+    data.labels.forEach(lbl => {
+        ctx.fillStyle = isDark ? '#fff' : '#000';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText(lbl.text, lbl.x, lbl.y);
+    });
+
+    detectRooms();
+    updateCounts();
+}
+
+function drawWall(w) {
+    const th = w.thickness || wallThickness;
+    const dx = w.x2 - w.x1;
+    const dy = w.y2 - w.y1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const hw = th / 2;
+    
+    const isDark = currentTheme === 'dark';
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(w.x1 + nx * hw, w.y1 + ny * hw);
+    ctx.lineTo(w.x2 + nx * hw, w.y2 + ny * hw);
+    ctx.lineTo(w.x2 - nx * hw, w.y2 - ny * hw);
+    ctx.lineTo(w.x1 - nx * hw, w.y1 - ny * hw);
+    ctx.closePath();
+    
+    ctx.fillStyle = isDark ? '#3a3a3a' : '#fff';
+    ctx.fill();
+    
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    const spacing = 8;
+    ctx.beginPath();
+    for (let t = -hw + 2; t < hw; t += spacing) {
+        const offsetX = nx * t;
+        const offsetY = ny * t;
+        ctx.moveTo(w.x1 + offsetX, w.y1 + offsetY);
+        ctx.lineTo(w.x2 + offsetX, w.y2 + offsetY);
+    }
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    ctx.fillStyle = isDark ? '#fff' : '#000';
+    ctx.beginPath();
+    ctx.arc(w.x1, w.y1, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(w.x2, w.y2, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+function drawWindow(win) {
+    const isDark = currentTheme === 'dark';
+    const wall = findWallForElement(win);
+    let angle = 0;
+    if (wall) {
+        angle = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1);
+    }
+    ctx.save();
+    ctx.translate(win.x, win.y);
+    ctx.rotate(angle);
+    
+    ctx.fillStyle = isDark ? '#3a3a3a' : '#fff';
+    ctx.fillRect(-12, -5, 24, 10);
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-12, -5, 24, 10);
+    
+    ctx.beginPath();
+    ctx.moveTo(-8, -5);
+    ctx.lineTo(-8, 5);
+    ctx.moveTo(0, -5);
+    ctx.lineTo(0, 5);
+    ctx.moveTo(8, -5);
+    ctx.lineTo(8, 5);
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    
+    ctx.restore();
+}
+
+function drawDoor(door) {
+    const isDark = currentTheme === 'dark';
+    const wall = findWallForElement(door);
+    let angle = 0;
+    if (wall) {
+        angle = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1);
+    }
+    const doorLen = door.length || 20;
+    
+    ctx.save();
+    ctx.translate(door.x, door.y);
+    ctx.rotate(angle);
+    
+    // Рисуем дугу открытия двери
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, doorLen, 0, Math.PI / 2);
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Рисуем полотно двери
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(doorLen, 0);
+    ctx.strokeStyle = isDark ? '#fff' : '#000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Рисуем линию проема (пунктир)
+    ctx.beginPath();
+    ctx.moveTo(-doorLen, 0);
+    ctx.lineTo(doorLen, 0);
+    ctx.strokeStyle = isDark ? '#888' : '#888';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    ctx.restore();
+}
+
+function drawGrid() {
+    const isDark = currentTheme === 'dark'; ctx.strokeStyle = isDark ? '#444' : '#eee';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 50) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 50) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+}
+
+function detectRooms() {
+    const isDark = currentTheme === 'dark';
+    data.rooms = [];
+    const walls = data.walls;
+    const doors = data.doors;
+    
+    if (walls.length < 3) return;
+    
+    // Строим граф соединений стен
+    const graph = {};
+    const pointKey = (x, y) => `${Math.round(x/GRID)*GRID},${Math.round(y/GRID)*GRID}`;
+    
+    walls.forEach(w => {
+        const k1 = pointKey(w.x1, w.y1);
+        const k2 = pointKey(w.x2, w.y2);
+        if (!graph[k1]) graph[k1] = [];
+        if (!graph[k2]) graph[k2] = [];
+        graph[k1].push({x: w.x2, y: w.y2});
+        graph[k2].push({x: w.x1, y: w.y1});
+    });
+    
+    // Ищем замкнутые контуры (комнаты)
+    const visited = new Set();
+    const cycles = [];
+    
+    function dfs(start, current, path) {
+        const key = pointKey(current.x, current.y);
+        if (visited.has(key) && key === pointKey(start.x, start.y) && path.length > 2) {
+            cycles.push([...path]);
+            return;
+        }
+        if (visited.has(key)) return;
+        
+        visited.add(key);
+        const neighbors = graph[key] || [];
+        for (const next of neighbors) {
+            path.push(next);
+            dfs(start, next, path);
+            path.pop();
+        }
+        visited.delete(key);
+    }
+    
+    Object.keys(graph).forEach(k => {
+        const [x, y] = k.split(',').map(Number);
+        dfs({x, y}, {x, y}, [{x, y}]);
+    });
+    
+    // Убираем дубликаты комнат и проверяем наличие двери
+    const uniqueCycles = [];
+    cycles.forEach(cycle => {
+        const minX = Math.min(...cycle.map(p => p.x));
+        const maxX = Math.max(...cycle.map(p => p.x));
+        const minY = Math.min(...cycle.map(p => p.y));
+        const maxY = Math.max(...cycle.map(p => p.y));
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        
+        // Проверяем, есть ли дверь в этой комнате (дверь должна быть на стене комнаты)
+        const hasDoor = doors.some(d => {
+            // Дверь должна быть внутри bounding box комнаты
+            const insideX = d.x >= minX - 5 && d.x <= maxX + 5;
+            const insideY = d.y >= minY - 5 && d.y <= maxY + 5;
+            
+            // И стена рядом с дверью
+            const wallNear = walls.some(w => {
+                const dist = pointToLineDist(d.x, d.y, w.x1, w.y1, w.x2, w.y2);
+                return dist < 10;
+            });
+            
+            return insideX && insideY && wallNear;
+        });
+        
+        // Добавляем комнату если она уникальна (не дублирует существующую)
+        if (!uniqueCycles.some(c => {
+            const dx = Math.abs(c.cx - cx);
+            const dy = Math.abs(c.cy - cy);
+            return dx < 50 && dy < 50;
+        })) {
+            uniqueCycles.push({cx, cy, minX, maxX, minY, maxY, hasDoor});
+        }
+    });
+    
+    // Создаем комнаты
+    uniqueCycles.forEach((c, i) => {
+        if (!data.rooms.some(r => Math.abs(r.x - c.cx) < 50 && Math.abs(r.y - c.cy) < 50)) {
+            const roomName = c.hasDoor ? 'Комната ' + (data.rooms.length + 1) : 'Зона ' + (data.rooms.length + 1);
+            data.rooms.push({x: c.cx, y: c.cy, name: roomName});
+        }
+    });
+    
+    // Отрисовываем комнаты
+    data.rooms.forEach(room => {
+        ctx.fillStyle = 'rgba(0, 120, 215, 0.08)';
+        ctx.beginPath();
+        ctx.arc(room.x, room.y, 40, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0078d7';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = isDark ? '#fff' : '#000';
+        ctx.font = 'bold 14px Segoe UI, Arial';
+        ctx.fillText(room.name, room.x - ctx.measureText(room.name).width / 2, room.y - 5);
+        ctx.fillStyle = isDark ? '#aaa' : '#666';
+        ctx.font = '12px Segoe UI, Arial';
+        const hint = room.hasDoor ? '' : '(нет двери)';
+        ctx.fillText(hint, room.x - ctx.measureText(hint).width / 2, room.y + 15);
+    });
+}
+
+function isPointOnLine(px, py, x1, y1, x2, y2, tolerance) {
+    const dist = pointToLineDist(px, py, x1, y1, x2, y2);
+    const onSegment = px >= Math.min(x1, x2) - tolerance && px <= Math.max(x1, x2) + tolerance &&
+                      py >= Math.min(y1, y2) - tolerance && py <= Math.max(y1, y2) + tolerance;
+    return dist <= tolerance && onSegment;
+}
+
+function updateCounts() {
+    document.getElementById('wallCount').textContent = data.walls.length;
+    document.getElementById('windowCount').textContent = data.windows.length;
+    document.getElementById('doorCount').textContent = data.doors.length;
+    document.getElementById('roomCount').textContent = data.rooms.length;
+}
+
+let isDrawing = false;
+let startX, startY;
+let currentWall = null;
+let currentDoor = null;
+
+canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    
+    if (currentTool === 'wall') {
+        isDrawing = true;
+        startX = snap(x);
+        startY = snap(y);
+    } else if (currentTool === 'window') {
+        const wall = findClosestWall(x, y);
+        if (wall) {
+            const proj = projectPointOnLine(x, y, wall.x1, wall.y1, wall.x2, wall.y2);
+            data.windows.push({x: proj.x, y: proj.y});
+            redraw();
+            showStatus('Окно добавлено');
+        } else {
+            showStatus('Окно можно добавить только на стену');
+        }
+    } else if (currentTool === 'door') {
+        // При создании двери ищем ближайшую стену и привязываем дверь к ней
+        const wall = findClosestWall(x, y);
+        if (wall) {
+            const proj = projectPointOnLine(x, y, wall.x1, wall.y1, wall.x2, wall.y2);
+            // Вычисляем длину двери как расстояние от точки клика до проекции на стену
+            const dx = x - proj.x;
+            const dy = y - proj.y;
+            const doorLen = Math.max(15, Math.min(40, Math.sqrt(dx * dx + dy * dy) * 2));
+            data.doors.push({x: proj.x, y: proj.y, length: doorLen});
+            redraw();
+            showStatus('Дверь добавлена');
+        } else {
+            showStatus('Дверь можно добавить только на стену. Кликните рядом со стеной.');
+        }
+    } else if (currentTool === 'room') {
+        const text = prompt('Название комнаты:');
+        if (text) {
+            data.labels.push({x: snap(x), y: snap(y), text});
+            redraw();
+            showStatus('Название добавлено: ' + text);
+        }
+    } else if (currentTool === 'select') {
+        selectElement(x, y);
+    }
+});
+
+canvas.addEventListener('dblclick', e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    
+    data.rooms.forEach(room => {
+        if (Math.abs(room.x - x) < 40 && Math.abs(room.y - y) < 40) {
+            const newName = prompt('Переименовать комнату:', room.name);
+            if (newName) {
+                room.name = newName;
+                redraw();
+            }
+        }
+    });
+});
+
+canvas.addEventListener('mousemove', e => {
+    if (!isDrawing) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    
+    if (currentTool === 'wall') {
+        currentWall = {x1: startX, y1: startY, x2: snap(x), y2: snap(y), thickness: wallThickness};
+        
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawGrid();
+        data.walls.forEach(w => {
+            drawWall(w);
+        });
+        if (currentWall) {
+            drawWall(currentWall);
+        }
+    }
+});
+
+canvas.addEventListener('mouseup', () => {
+    if (isDrawing) {
+        if (currentTool === 'wall' && currentWall) {
+            data.walls.push(currentWall);
+            showStatus('Стена добавлена');
+        }
+        currentWall = null;
+        currentDoor = null;
+        redraw();
+    }
+    isDrawing = false;
+});
+
+function selectElement(x, y) {
+    let found = false;
+    
+    data.walls.forEach((w, i) => {
+        const dist = pointToLineDist(x, y, w.x1, w.y1, w.x2, w.y2);
+        if (dist < 10) {
+            if (confirm('Удалить эту стену?')) {
+                data.walls.splice(i, 1);
+                redraw();
+            }
+            found = true;
+        }
+    });
+    
+    if (!found) {
+        data.windows.forEach((win, i) => {
+            if (Math.abs(win.x - x) < 15 && Math.abs(win.y - y) < 15) {
+                if (confirm('Удалить это окно?')) {
+                    data.windows.splice(i, 1);
+                    redraw();
+                }
+                found = true;
+            }
+        });
+    }
+    
+    if (!found) {
+        data.doors.forEach((door, i) => {
+            if (Math.abs(door.x - x) < 20 && Math.abs(door.y - y) < 20) {
+                if (confirm('Удалить эту дверь?')) {
+                    data.doors.splice(i, 1);
+                    redraw();
+                }
+                found = true;
+            }
+        });
+    }
+    
+    if (!found) {
+        data.labels.forEach((lbl, i) => {
+            if (Math.abs(lbl.x - x) < 50 && Math.abs(lbl.y - y) < 20) {
+                const newText = prompt('Изменить название:', lbl.text);
+                if (newText === null) {
+                    if (confirm('Удалить название?')) {
+                        data.labels.splice(i, 1);
+                        redraw();
+                    }
+                } else {
+                    lbl.text = newText;
+                    redraw();
+                }
+                found = true;
+            }
+        });
+    }
+}
+
+function pointToLineDist(px, py, x1, y1, x2, y2) {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    if (lenSq !== 0) param = dot / lenSq;
+    let xx, yy;
+    if (param < 0) {
+        xx = x1;
+        yy = y1;
+    } else if (param > 1) {
+        xx = x2;
+        yy = y2;
+    } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+    }
+    const dx = px - xx;
+    const dy = py - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function findWallForElement(el) {
+    let best = null;
+    let bestDist = Infinity;
+    data.walls.forEach(w => {
+        const d = pointToLineDist(el.x, el.y, w.x1, w.y1, w.x2, w.y2);
+        if (d < bestDist && d < 30) {
+            bestDist = d;
+            best = w;
+        }
+    });
+    return best;
+}
+
+function findClosestWall(x, y) {
+    return findWallForElement({x, y});
+}
+
+function projectPointOnLine(px, py, x1, y1, x2, y2) {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = 0.5;
+    if (lenSq !== 0) param = dot / lenSq;
+    param = Math.max(0, Math.min(1, param));
+    return {
+        x: x1 + param * C,
+        y: y1 + param * D
+    };
+}
+
+saveBtn.addEventListener('click', () => {
+    saveData();
+});
+exportPngBtn.addEventListener('click', () => {
+    window.open('/api/project/' + projectId + '/export/png');
+    showStatus('Экспорт PNG начат');
+});
+exportJsonBtn.addEventListener('click', () => {
+    window.open('/api/project/' + projectId + '/export/json');
+    showStatus('Экспорт JSON начат');
+});
+
+function showStatus(msg) {
+    const status = document.createElement('div');
+    status.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#2c3e50;color:white;padding:12px 20px;border-radius:4px;z-index:9999;box-shadow:0 2px 10px rgba(0,0,0,0.2);animation:fadeIn 0.3s;';
+    status.textContent = msg;
+    document.body.appendChild(status);
+    setTimeout(() => {
+        status.style.opacity = '0';
+        status.style.transition = 'opacity 0.3s';
+        setTimeout(() => status.remove(), 300);
+    }, 2000);
+}
+
+const themeToggle = document.getElementById('themeToggle');
+const editorContainer = document.querySelector('.editor-container');
+let currentTheme = localStorage.getItem('theme') || 'light';
+editorContainer.setAttribute('data-theme', currentTheme);
+
+themeToggle.addEventListener('click', () => {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    editorContainer.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('theme', currentTheme);
+    redraw();
+});
+
+loadData();
+showStatus('Редактор загружен. Выберите инструмент для начала работы.');
+</script>
+{% endblock %}
